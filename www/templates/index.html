@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    </head>
+<body>
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="nav-icon"><a href="/" style="color:white; text-decoration:none;">🛡️ Текст</a></div> 
+            <input type="text" placeholder="Текстове поле" class="text-input">
+        </div>
+
+        <nav class="nav-right">
+            <a href="/" class="nav-button">HelperInfo</a>
+            <a href="/tickets" class="nav-button">TicketInfo (№1)</a>
+            <a href="{{ url_for('logout') }}" class="nav-button" style="background-color: #dc3545;">Вихід</a>
+        </nav>
+    </header>
+
+    <main class="site-body">
+        
+        <section class="main-block">
+            
+            <div class="search-bar-container">
+                <div class="search-input-wrapper">
+                    <form method="GET" action="{{ request.path }}">
+                    <input type="text" placeholder="Пошук..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
+                    </form>
+                </div>
+            </div>
+
+            <div class="data-display-container">
+                <h2>{{ main_content_title }}</h2>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            {% for header in col_headers %}
+                            <th>{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in table_data %}
+                        <tr>
+                            {% for value in row.values() %}
+                                <td>{{ value }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ col_headers | length }}" style="text-align: center;">Даних не знайдено або помилка підключення до БД.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+        </section>
+
+    </main>
+
+</body>
+</html>
