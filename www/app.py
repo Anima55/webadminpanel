@@ -147,9 +147,7 @@ def get_all_tickets():
         t.submitter_username, 
         h.admin_name AS handler_name, 
         t.time_spent, 
-        t.resolution_rating, 
-        t.created_at, 
-        t.closed_at
+        t.resolution_rating
     FROM public.ticketinfo AS t
     LEFT JOIN public.helperinfo AS h ON t.handler_helper_id = h.helper_id
     ORDER BY t.ticket_id;
@@ -188,9 +186,7 @@ def get_tickets_by_multi_search(search_query):
         t.submitter_username, 
         h.admin_name AS handler_name, 
         t.time_spent, 
-        t.resolution_rating, 
-        t.created_at, 
-        t.closed_at
+        t.resolution_rating
     FROM public.ticketinfo AS t
     LEFT JOIN public.helperinfo AS h ON t.handler_helper_id = h.helper_id
     WHERE 
@@ -205,11 +201,11 @@ def get_tickets_by_multi_search(search_query):
     search_pattern = f"%{search_query}%" 
     
     # Створюємо кортеж параметрів, повторюючи шаблон 5 разів (для 5-ти %s)
-    params = (search_pattern,) * 5
+    params = (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern)
 
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, params) 
+            cur.execute(sql, params)
             column_names = [desc[0] for desc in cur.description]
             tickets = cur.fetchall()
             
@@ -289,11 +285,12 @@ def home():
     
     # Використовуємо той самий шаблон index.html, але з даними помічників
     return render_template('index.html', 
-                           title="Helper Information", 
-                           table_data=helpers,
-                           col_headers=["ID", "Ім'я", "Ранг", "Попереджень"],
-                           main_content_title=main_title)
+        title="Helper Information", 
+        table_data=helpers,
+        col_headers=["ID", "Ім'я", "Ранг", "Попереджень"],
+        main_content_title=main_title)
 
+# --- МАРШРУТ 2: СТОРІНКА №1 (ticketinfo) ---
 # --- МАРШРУТ 2: СТОРІНКА №1 (ticketinfo) ---
 @app.route('/tickets')
 # @login_required 
@@ -313,10 +310,11 @@ def tickets():
         main_title = "Тікети (TicketInfo)"
     
     return render_template('index.html', 
-                           title="Ticket Information", 
-                           table_data=tickets_data,
-                           col_headers=["ID", "Заявник", "Обробник", "Час (сек)", "Рейтинг", "Створено", "Закрито"],
-                           main_content_title=main_title)
+        title="Ticket Information", 
+        table_data=tickets_data,
+        # ЗМІНІТЬ ЦЕЙ РЯДОК: видаліть "Створено" та "Закрито"
+        col_headers=["ID", "Заявник", "Обробник", "Час (сек)", "Рейтинг"],
+        main_content_title=main_title)
 
 # --- МАРШРУТ 3: СТОРІНКА ВХОДУ (login) ---
 @app.route('/login', methods=['GET', 'POST'])
