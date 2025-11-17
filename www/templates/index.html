@@ -42,19 +42,26 @@
                             {% for header in col_headers %}
                             <th>{{ header }}</th>
                             {% endfor %}
-                        </tr>
+                            {% if main_content_title.startswith('Співробітники') %}
+                            <th>Дії</th>
+                            {% endif %}
+                            </tr>
                     </thead>
                     <tbody>
                         {% for row in table_data %}
-                        <tr>
-                            {% for value in row.values() %}
+                        <tr data-id="{{ row['helper_id'] }}" data-name="{{ row['admin_name'] }}" data-rank="{{ row['admin_rank'] }}" data-warnings="{{ row['warnings_count'] }}">
+                            {% for key, value in row.items() %}
                                 <td>{{ value }}</td>
                             {% endfor %}
-                        </tr>
+                            
+                            {% if main_content_title.startswith('Співробітники') %}
+                            <td>
+                                <button class="edit-btn" onclick="openEditModal(this)">Редагувати</button>
+                                </td>
+                            {% endif %}
+                            </tr>
                         {% else %}
-                        <tr>
-                            <td colspan="{{ col_headers | length }}" style="text-align: center;">Даних не знайдено або помилка підключення до БД.</td>
-                        </tr>
+...
                         {% endfor %}
                     </tbody>
                 </table>
@@ -63,6 +70,38 @@
         </section>
 
     </main>
+    
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeEditModal()">&times;</span>
+            <h2>Редагувати дані співробітника</h2>
+            
+            <form method="POST" action="{{ url_for('update_helper') }}" id="editForm">
+                <input type="hidden" name="helper_id" id="modal_helper_id">
+                
+                <label for="modal_admin_name">Ім'я:</label>
+                <input type="text" id="modal_admin_name" name="admin_name" required>
+                
+                <label for="modal_admin_rank">Ранг:</label>
+                <input type="text" id="modal_admin_rank" name="admin_rank" required>
+                
+                <label for="modal_warnings_count">Попередження:</label>
+                <input type="number" id="modal_warnings_count" name="warnings_count" min="0" required>
+                
+                <div class="modal-buttons">
+                    <button type="submit" class="save-btn">Зберегти зміни</button>
+                    
+                    <form method="POST" action="{{ url_for('delete_helper') }}" id="deleteForm" style="display:inline;">
+                        <input type="hidden" name="helper_id" id="modal_delete_helper_id">
+                        <button type="submit" class="delete-btn" onclick="return confirm('Ви впевнені, що хочете видалити співробітника ID ' + document.getElementById('modal_delete_helper_id').value + '?');">Видалити</button>
+                    </form>
+
+                    <button type="button" class="delete-btn" onclick="closeEditModal()">Скасувати</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="{{ url_for('script', filename='helpinfo.js') }}"></script>
 
 </body>
 </html>

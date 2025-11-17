@@ -6,7 +6,7 @@
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
-        /* Додаткові стилі для форми входу */
+        /* Основні стилі контейнера */
         .login-container {
             width: 100%;
             max-width: 400px;
@@ -56,6 +56,18 @@
             margin-bottom: 15px;
             font-weight: bold;
         }
+        
+        /* --- АДАПТИВНІСТЬ: ПОКРАЩЕННЯ ДЛЯ МАЛИХ ЕКРАНІВ --- */
+        @media (max-width: 450px) {
+            .login-container {
+                /* Зменшуємо горизонтальний відступ навколо форми, щоб не було притискання */
+                margin: 50px 10px; 
+                /* Зменшуємо внутрішній відступ, щоб контент був щільнішим */
+                padding: 20px; 
+            }
+        }
+        /* --- КІНЕЦЬ АДАПТИВНОСТІ --- */
+
     </style>
 </head>
 <body>

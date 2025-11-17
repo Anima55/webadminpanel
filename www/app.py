@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
 import psycopg
 import os
-from functools import wraps 
+from functools import wraps
 
 # --- ПОЧАТОК КОДУ З GRUD.PY (Для функцій БД) ---
 # --- КОНФІГУРАЦІЯ БАЗИ ДАНИХ (ЗМІНІТЬ НА ВАШІ ДАНІ!) ---
@@ -88,6 +88,53 @@ def get_helpers_by_search(search_query):
     except Exception as e:
         print(f"❌ Помилка читання даних helperinfo з пошуком: {e}")
         return []
+    finally:
+        if conn: conn.close()
+
+# НОВА ФУНКЦІЯ: Оновлення даних співробітника
+def update_helper_data(helper_id, name, rank, warnings):
+    """Оновлює дані співробітника в таблиці helperinfo."""
+    sql = """
+    UPDATE public.helperinfo
+    SET admin_name = %s, admin_rank = %s, warnings_count = %s
+    WHERE helper_id = %s;
+    """
+    conn = get_connection()
+    if conn is None: return False
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (name, rank, warnings, helper_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Помилка оновлення даних співробітника ID {helper_id}: {e}")
+        conn.rollback()
+        return False
+    finally:
+        if conn: conn.close()
+
+# НОВА ФУНКЦІЯ: Видалення співробітника
+def delete_helper_data(helper_id):
+    """Видаляє запис співробітника з таблиці helperinfo."""
+    sql = "DELETE FROM public.helperinfo WHERE helper_id = %s;"
+    conn = get_connection()
+    if conn is None: return False
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (helper_id,))
+        conn.commit()
+        return True
+    except psycopg.errors.ForeignKeyViolation as e:
+        # Обробка помилки, якщо є пов'язані тікети
+        print(f"❌ Помилка: Неможливо видалити співробітника ID {helper_id}, оскільки він має пов'язані тікети. {e}")
+        conn.rollback()
+        return False
+    except Exception as e:
+        print(f"❌ Помилка видалення співробітника ID {helper_id}: {e}")
+        conn.rollback()
+        return False
     finally:
         if conn: conn.close()
 
@@ -300,6 +347,36 @@ def login():
     # Метод GET: Просто відображаємо сторінку логіну
     return render_template('login.html', title="Вхід до системи")
 
+# --- МАРШРУТ 4: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
+@app.route('/update_helper', methods=['POST'])
+# @login_required 
+def update_helper():
+    helper_id = request.form.get('helper_id')
+    name = request.form.get('admin_name')
+    rank = request.form.get('admin_rank')
+    warnings = request.form.get('warnings_count')
+    
+    if update_helper_data(helper_id, name, rank, warnings):
+        print(f"✅ Дані співробітника ID {helper_id} успішно оновлено.")
+    else:
+        print(f"❌ Помилка оновлення даних для ID {helper_id}.")
+        
+    return redirect(url_for('home'))
+
+# --- МАРШРУТ 5: ВИДАЛЕННЯ СПІВРОБІТНИКА ---
+@app.route('/delete_helper', methods=['POST'])
+# @login_required 
+def delete_helper():
+    helper_id = request.form.get('helper_id')
+    
+    if delete_helper_data(helper_id):
+        print(f"✅ Співробітник ID {helper_id} успішно видалено.")
+    else:
+        # У разі невдачі (наприклад, через FK) можна додати повідомлення про помилку
+        print(f"❌ Помилка видалення співробітника ID {helper_id} (можливо, він має відкриті тікети).")
+        
+    return redirect(url_for('home'))
+
 # Маршрут для виходу (із попереднього кроку)
 @app.route('/logout')
 def logout():
@@ -307,6 +384,12 @@ def logout():
     session.pop('username', None)
     session.pop('webadmin_id', None)
     return redirect(url_for('login')) 
+
+# --- НОВИЙ МАРШРУТ: для подачі файлів з папки 'script' ---
+@app.route('/script/<path:filename>')
+def script(filename):
+    """Подає статичні файли з папки 'script'."""
+    return send_from_directory('script', filename)
 
 
 if __name__ == '__main__':
