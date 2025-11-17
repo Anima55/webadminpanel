@@ -35,15 +35,6 @@ body {
     /* Забезпечуємо квадратну форму або просто вигляд іконки */
 }
 
-.text-input {
-    padding: 8px 10px;
-    border: none;
-    border-radius: 4px;
-    flex-grow: 1; /* Поле може трохи розтягуватись */
-    min-width: 100px;
-    background-color: #444;
-    color: white;
-}
 
 /* Права частина навігації (Кнопки) */
 .nav-right {
