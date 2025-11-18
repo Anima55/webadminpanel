@@ -25,20 +25,27 @@ def get_connection():
         return None
 
 # Функція для отримання всіх помічників (для головної сторінки)
-def get_all_helpers():
-    """Повертає всіх помічників з таблиці helperinfo."""
-    sql = "SELECT helper_id, admin_name, admin_rank, warnings_count FROM public.helperinfo ORDER BY helper_id;"
+def get_all_helpers(sort_by=None, sort_type='ASC'): # <--- ДОДАТИ: параметри сортування
+    """Повертає всіх помічників з таблиці helperinfo, з можливістю сортування."""
+    
+    valid_sort_fields = ['helper_id', 'admin_name', 'admin_rank', 'warnings_count']
+    order_column = sort_by if sort_by in valid_sort_fields else 'helper_id'
+    order_direction = sort_type if sort_type in ('ASC', 'DESC') else 'ASC'
+    
+    sql = f"""
+    SELECT helper_id, admin_name, admin_rank, warnings_count 
+    FROM public.helperinfo 
+    ORDER BY {order_column} {order_direction};
+    """
     conn = get_connection()
-    if conn is None: return [] # Повертаємо порожній список у разі помилки
+    if conn is None: return [] 
 
     try:
         with conn.cursor() as cur:
             cur.execute(sql)
-            # Отримуємо імена стовпців для коректного відображення в шаблоні
             column_names = [desc[0] for desc in cur.description]
             helpers = cur.fetchall()
             
-            # Перетворюємо результат у список словників для зручної роботи в Jinja2
             data = []
             for row in helpers:
                 data.append(dict(zip(column_names, row)))
@@ -50,14 +57,17 @@ def get_all_helpers():
     finally:
         conn.close()
 
-def get_helpers_by_search(search_query):
-    """Повертає помічників, які відповідають search_query у будь-якому текстовому полі."""
+def get_helpers_by_search(search_query, sort_by=None, sort_type='ASC'): # <--- ДОДАТИ: параметри сортування
+    """Повертає помічників, які відповідають search_query у будь-якому текстовому полі, з сортуванням."""
     conn = get_connection()
     if conn is None: return []
 
-    # НОВИЙ SQL-ЗАПИТ: Використовуємо OR для пошуку в кількох стовпцях.
-    # Числові стовпці (ID, Попередження) перетворюємо на TEXT за допомогою CAST.
-    sql = """
+    valid_sort_fields = ['helper_id', 'admin_name', 'admin_rank', 'warnings_count']
+    order_column = sort_by if sort_by in valid_sort_fields else 'helper_id'
+    order_direction = sort_type if sort_type in ('ASC', 'DESC') else 'ASC'
+
+    # !!! ЗМІНА В SQL-ЗАПИТІ: Додаємо ORDER BY
+    sql = f"""
     SELECT helper_id, admin_name, admin_rank, warnings_count 
     FROM public.helperinfo 
     WHERE 
@@ -65,17 +75,13 @@ def get_helpers_by_search(search_query):
         admin_rank ILIKE %s OR
         CAST(warnings_count AS TEXT) ILIKE %s OR
         CAST(helper_id AS TEXT) ILIKE %s 
-    ORDER BY helper_id;
+    ORDER BY {order_column} {order_direction}; 
     """
-    # Шаблон пошуку, що підходить для всіх 4-х полів
     search_pattern = f"%{search_query}%" 
-    
-    # Створюємо кортеж параметрів, повторюючи шаблон 4 рази (для 4-х %s)
     params = (search_pattern, search_pattern, search_pattern, search_pattern)
 
     try:
         with conn.cursor() as cur:
-            # cur.execute отримує кортеж з 4-ма елементами
             cur.execute(sql, params) 
             column_names = [desc[0] for desc in cur.description]
             helpers = cur.fetchall()
@@ -116,7 +122,7 @@ def update_helper_data(helper_id, name, rank, warnings):
 
 # НОВА ФУНКЦІЯ: Видалення співробітника
 def delete_helper_data(helper_id):
-    """Видаляє запис співробітника з таблиці helperinfo."""
+    """Видаляє співробітника з таблиці helperinfo за ID."""
     sql = "DELETE FROM public.helperinfo WHERE helper_id = %s;"
     conn = get_connection()
     if conn is None: return False
@@ -125,23 +131,51 @@ def delete_helper_data(helper_id):
         with conn.cursor() as cur:
             cur.execute(sql, (helper_id,))
         conn.commit()
-        return True
+        # Повертаємо True, якщо видалено принаймні один рядок
+        return cur.rowcount > 0 
     except psycopg.errors.ForeignKeyViolation as e:
-        # Обробка помилки, якщо є пов'язані тікети
-        print(f"❌ Помилка: Неможливо видалити співробітника ID {helper_id}, оскільки він має пов'язані тікети. {e}")
+        # Ця помилка виникає, якщо співробітник має тікети (Foreign Key Constraint)
+        print(f"❌ Помилка видалення: Співробітник ID {helper_id} має пов'язані записи в інших таблицях (тікети).")
         conn.rollback()
         return False
     except Exception as e:
-        print(f"❌ Помилка видалення співробітника ID {helper_id}: {e}")
+        print(f"❌ Невідома помилка видалення: {e}")
+        conn.rollback()
+        return False
+    finally:
+        if conn: conn.close()
+
+# НОВА ФУНКЦІЯ: Додавання нового співробітника
+def insert_helper_data(name, rank, warnings):
+    """Додає нового співробітника в таблицю helperinfo."""
+    sql = """
+    INSERT INTO public.helperinfo (admin_name, admin_rank, warnings_count)
+    VALUES (%s, %s, %s);
+    """
+    conn = get_connection()
+    if conn is None: return False
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (name, rank, warnings))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Помилка додавання нового співробітника: {e}")
         conn.rollback()
         return False
     finally:
         if conn: conn.close()
 
 # Функція для отримання всіх тікетів
-def get_all_tickets():
-    """Повертає всі тікети з таблиці ticketinfo."""
-    sql = """
+def get_all_tickets(sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Додано параметри сортування
+    """Повертає всі тікети з таблиці ticketinfo, з можливістю сортування."""
+    
+    valid_sort_fields = ['ticket_id', 'submitter_username', 'handler_name', 'time_spent', 'resolution_rating']
+    order_column = sort_by if sort_by in valid_sort_fields else 'ticket_id'
+    order_direction = sort_type if sort_type in ('ASC', 'DESC') else 'ASC'
+    
+    sql = f"""
     SELECT 
         t.ticket_id, 
         t.submitter_username, 
@@ -150,14 +184,14 @@ def get_all_tickets():
         t.resolution_rating
     FROM public.ticketinfo AS t
     LEFT JOIN public.helperinfo AS h ON t.handler_helper_id = h.helper_id
-    ORDER BY t.ticket_id;
+    ORDER BY {order_column} {order_direction};
     """
     conn = get_connection()
     if conn is None: return []
 
     try:
         with conn.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql) # Виконуємо вже відформатований запит
             column_names = [desc[0] for desc in cur.description]
             tickets = cur.fetchall()
             
@@ -171,16 +205,18 @@ def get_all_tickets():
     finally:
         if conn: conn.close()
 
-# НОВА ФУНКЦІЯ: Пошук тікетів за іменем заявника
-def get_tickets_by_multi_search(search_query):
-    """Повертає тікети, які відповідають search_query у кількох полях."""
+# Функція: Пошук тікетів за іменем заявника
+def get_tickets_by_multi_search(search_query, sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Додано параметри сортування
+    """Повертає тікети, які відповідають search_query у кількох полях, з сортуванням."""
     conn = get_connection()
     if conn is None: return []
 
-    # НОВИЙ SQL-ЗАПИТ: 
-    # Шукаємо по ID, submitter_username, admin_name (обробник), time_spent та resolution_rating.
-    # Числові поля (ticket_id, time_spent, resolution_rating) перетворюємо на TEXT.
-    sql = """
+    valid_sort_fields = ['ticket_id', 'submitter_username', 'handler_name', 'time_spent', 'resolution_rating']
+    order_column = sort_by if sort_by in valid_sort_fields else 'ticket_id'
+    order_direction = sort_type if sort_type in ('ASC', 'DESC') else 'ASC'
+    
+    # !!! ЗМІНА В SQL-ЗАПИТІ: Додаємо ORDER BY
+    sql = f"""
     SELECT 
         t.ticket_id, 
         t.submitter_username, 
@@ -190,13 +226,33 @@ def get_tickets_by_multi_search(search_query):
     FROM public.ticketinfo AS t
     LEFT JOIN public.helperinfo AS h ON t.handler_helper_id = h.helper_id
     WHERE 
-        CAST(t.ticket_id AS TEXT) ILIKE %s OR                      -- Пошук по ID
-        t.submitter_username ILIKE %s OR                           -- Пошук по Заявнику
-        h.admin_name ILIKE %s OR                                   -- Пошук по Обробнику
-        CAST(t.time_spent AS TEXT) ILIKE %s OR                     -- Пошук по Часу (сек)
-        CAST(t.resolution_rating AS TEXT) ILIKE %s                  -- Пошук по Рейтингу
-    ORDER BY t.ticket_id;
+        CAST(t.ticket_id AS TEXT) ILIKE %s OR                      
+        t.submitter_username ILIKE %s OR                           
+        h.admin_name ILIKE %s OR                                   
+        CAST(t.time_spent AS TEXT) ILIKE %s OR                     
+        CAST(t.resolution_rating AS TEXT) ILIKE %s                  
+    ORDER BY {order_column} {order_direction};
     """
+    search_pattern = f"%{search_query}%" 
+    params = (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern)
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            column_names = [desc[0] for desc in cur.description]
+            tickets = cur.fetchall()
+            
+            data = []
+            for row in tickets:
+                data.append(dict(zip(column_names, row)))
+            return data
+
+    except Exception as e:
+        print(f"❌ Помилка читання даних ticketinfo з пошуком: {e}")
+        return []
+    finally:
+        if conn: conn.close()
+
     # Шаблон пошуку, що підходить для всіх 5-ти полів
     search_pattern = f"%{search_query}%" 
     
@@ -269,52 +325,64 @@ def login_required(f):
 @app.route('/')
 @login_required 
 def home():
-    """Відображає таблицю helperinfo, з підтримкою пошуку."""
+    """Відображає таблицю helperinfo, з підтримкою пошуку та сортування."""
     
-    # 1. Отримуємо пошуковий запит з URL
     search_query = request.args.get('query', '')
     
+    # 1. Отримуємо параметри сортування з URL (тепер вони простіші)
+    sort_by = request.args.get('sort_by', '')
+    sort_type = request.args.get('sort_type', 'asc').upper() # ASC або DESC
+        
+    # 2. Вибираємо функцію для отримання даних
     if search_query:
-        # 2. Якщо запит є, використовуємо функцію пошуку
-        helpers = get_helpers_by_search(search_query)
+        # Передаємо сортування в функцію пошуку
+        helpers = get_helpers_by_search(search_query, sort_by, sort_type) 
         main_title = f"Співробітники (HelperInfo) - Пошук: '{search_query}'"
     else:
-        # 3. Якщо запиту немає, отримуємо всі дані
-        helpers = get_all_helpers()
+        # Передаємо сортування в функцію отримання всіх даних
+        helpers = get_all_helpers(sort_by, sort_type) 
         main_title = "Співробітники (HelperInfo)"
     
-    # Використовуємо той самий шаблон index.html, але з даними помічників
+    item_count = len(helpers)
+    
+    # Параметри sort_by та sort_type будуть автоматично доступні в шаблоні 
+    # завдяки request.args, тому їх окремо передавати не обов'язково.
     return render_template('index.html', 
         title="Helper Information", 
         table_data=helpers,
         col_headers=["ID", "Ім'я", "Ранг", "Попереджень"],
-        main_content_title=main_title)
+        main_content_title=main_title,
+        item_count=item_count)
 
-# --- МАРШРУТ 2: СТОРІНКА №1 (ticketinfo) ---
 # --- МАРШРУТ 2: СТОРІНКА №1 (ticketinfo) ---
 @app.route('/tickets')
 # @login_required 
 def tickets():
-    """Відображає таблицю ticketinfo, з підтримкою пошуку."""
+    """Відображає таблицю ticketinfo, з підтримкою пошуку та сортування.""" # <--- ЗМІНА
     
-    # 1. Отримуємо пошуковий запит з URL
     search_query = request.args.get('query', '')
     
+    # 1. Отримуємо параметри сортування з URL 
+    sort_by = request.args.get('sort_by', '')
+    sort_type = request.args.get('sort_type', 'asc').upper() # ASC або DESC
+    
     if search_query:
-        # 2. Якщо запит є, використовуємо НОВУ функцію пошуку
-        tickets_data = get_tickets_by_multi_search(search_query) 
+        # 2. Передаємо сортування в функцію пошуку
+        tickets_data = get_tickets_by_multi_search(search_query, sort_by, sort_type) # <--- ЗМІНА
         main_title = f"Тікети (TicketInfo) - Пошук: '{search_query}'"
     else:
-        # 3. Якщо запиту немає, отримуємо всі дані
-        tickets_data = get_all_tickets()
+        # 3. Передаємо сортування в функцію отримання всіх даних
+        tickets_data = get_all_tickets(sort_by, sort_type) # <--- ЗМІНА
         main_title = "Тікети (TicketInfo)"
+    
+    item_count = len(tickets_data) # <--- Тимчасовий фікс, якщо була помилка з item_count
     
     return render_template('index.html', 
         title="Ticket Information", 
         table_data=tickets_data,
-        # ЗМІНІТЬ ЦЕЙ РЯДОК: видаліть "Створено" та "Закрито"
         col_headers=["ID", "Заявник", "Обробник", "Час (сек)", "Рейтинг"],
-        main_content_title=main_title)
+        main_content_title=main_title,
+        item_count=item_count) # <--- Тимчасовий фікс, якщо була помилка з item_count
 
 # --- МАРШРУТ 3: СТОРІНКА ВХОДУ (login) ---
 @app.route('/login', methods=['GET', 'POST'])
@@ -370,8 +438,23 @@ def delete_helper():
     if delete_helper_data(helper_id):
         print(f"✅ Співробітник ID {helper_id} успішно видалено.")
     else:
-        # У разі невдачі (наприклад, через FK) можна додати повідомлення про помилку
-        print(f"❌ Помилка видалення співробітника ID {helper_id} (можливо, він має відкриті тікети).")
+        # Тут виводиться повідомлення, якщо видалення заблоковано через FK
+        print(f"❌ Помилка видалення співробітника ID {helper_id} (можливо, він має відкриті тікети або ID не знайдено).")
+        
+    return redirect(url_for('home'))
+
+# --- МАРШРУТ 6: ДОДАВАННЯ СПІВРОБІТНИКА ---
+@app.route('/add_helper', methods=['POST'])
+# @login_required 
+def add_helper():
+    name = request.form.get('admin_name')
+    rank = request.form.get('admin_rank')
+    warnings = request.form.get('warnings_count') or 0 # Приймаємо 0, якщо поле порожнє
+    
+    if insert_helper_data(name, rank, warnings):
+        print(f"✅ Співробітник {name} успішно додано.")
+    else:
+        print(f"❌ Помилка додавання співробітника {name}.")
         
     return redirect(url_for('home'))
 

@@ -25,15 +25,32 @@
         <section class="main-block">
             
             <div class="search-bar-container">
-                <div class="search-input-wrapper">
-                    <form method="GET" action="{{ request.path }}">
-                    <input type="text" placeholder="Пошук..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
-                    </form>
+                <div class="search-filter-wrapper">
+                    <div class="search-input-wrapper">
+                        <form method="GET" action="{{ request.path }}">
+                        <input type="text" placeholder="Пошук..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
+                        </form>
+                    </div>
+                    <button class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
                 </div>
             </div>
 
             <div class="data-display-container">
-                <h2>{{ main_content_title }}</h2>
+                
+                <div class="data-display-container">
+                <div class="content-header">
+                    <div>
+                        <h2>{{ main_content_title }}</h2>
+                        {% if main_content_title.startswith('Співробітники') %}
+                            <p class="item-count-text">Кількість: **{{ item_count }}**</p>
+                        {% endif %}
+                    </div>
+                    {% if main_content_title.startswith('Співробітники') %}
+                        <button class="add-btn" onclick="openAddModal()">
+                            ➕ Додати співробітника
+                        </button>
+                    {% endif %}
+                </div>
                 
                 <table class="data-table">
                     <thead>
@@ -88,19 +105,147 @@
                 <input type="number" id="modal_warnings_count" name="warnings_count" min="0" required>
                 
                 <div class="modal-buttons">
-                    <button type="submit" class="save-btn">Зберегти зміни</button>
-                    
-                    <form method="POST" action="{{ url_for('delete_helper') }}" id="deleteForm" style="display:inline;">
-                        <input type="hidden" name="helper_id" id="modal_delete_helper_id">
-                        <button type="submit" class="delete-btn" onclick="return confirm('Ви впевнені, що хочете видалити співробітника ID ' + document.getElementById('modal_delete_helper_id').value + '?');">Видалити</button>
-                    </form>
+                    <div class="modal-buttons-left">
+                        <button type="submit" class="save-btn">Зберегти зміни</button>
+                        <button type="button" class="cancel-btn" onclick="closeEditModal()">Скасувати</button>
+                </div>
+            </form>
+            
+            <div class="modal-buttons-delete-cancel">
+                <form method="POST" action="{{ url_for('delete_helper') }}" id="deleteForm" style="display:inline;">
+                    <input type="hidden" name="helper_id" id="modal_delete_helper_id">
+                    <button type="submit" class="delete-btn" 
+                            onclick="return confirm('Ви впевнені, що хочете видалити співробітника ID ' + document.getElementById('modal_delete_helper_id').value + '?');">
+                        Видалити
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 
-                    <button type="button" class="delete-btn" onclick="closeEditModal()">Скасувати</button>
+    <script src="{{ url_for('script', filename='helpinfo.js') }}"></script>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAddModal()">&times;</span>
+            <h2>Додати нового співробітника</h2>
+            
+            <form method="POST" action="{{ url_for('add_helper') }}" id="addForm">
+                
+                <label for="add_admin_name">Ім'я:</label>
+                <input type="text" id="add_admin_name" name="admin_name" required>
+                
+                <label for="add_admin_rank">Ранг:</label>
+                <input type="text" id="add_admin_rank" name="admin_rank" required>
+                
+                <label for="add_warnings_count">Попередження (не обов'язково, 0 за замовчуванням):</label>
+                <input type="number" id="add_warnings_count" name="warnings_count" min="0" value="0">
+                
+                <div class="modal-buttons" style="justify-content: flex-end;">
+                    <button type="submit" class="save-btn">Додати</button>
+                    <button type="button" class="cancel-btn" onclick="closeAddModal()">Скасувати</button>
                 </div>
             </form>
         </div>
     </div>
+    
     <script src="{{ url_for('script', filename='helpinfo.js') }}"></script>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeAddModal()">&times;</span>
+            <h2>Додати нового співробітника</h2>
+            
+            <form method="POST" action="{{ url_for('add_helper') }}" id="addForm">
+                
+                <label for="add_admin_name">Ім'я:</label>
+                <input type="text" id="add_admin_name" name="admin_name" required>
+                
+                <label for="add_admin_rank">Ранг:</label>
+                <input type="text" id="add_admin_rank" name="admin_rank" required>
+                
+                <label for="add_warnings_count">Попередження (не обов'язково):</label>
+                <input type="number" id="add_warnings_count" name="warnings_count" min="0" value="0">
+                
+                <div class="modal-buttons" style="justify-content: flex-end;">
+                    <button type="submit" class="save-btn">Додати</button>
+                    <button type="button" class="cancel-btn" onclick="closeAddModal()">Скасувати</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('script', filename='helpinfo.js') }}"></script>
+
+    <div id="filterModal" class="modal">
+        <div class="modal-content filter-modal-content">
+            <span class="close-btn" onclick="closeFilterModal()">&times;</span>
+            <h2>Налаштування сортування</h2>
+            
+            <form method="GET" action="{{ request.path }}" id="filterForm">
+                
+                <input type="hidden" name="query" value="{{ request.args.get('query', '') }}">
+                
+                <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
+                <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
+
+                <h3>Виберіть критерій сортування:</h3>
+
+                {% set current_sort_by = request.args.get('sort_by', '') %}
+                {% set current_sort_type = request.args.get('sort_type', 'asc') %}
+
+                <div class="filter-option">
+                    <label>Ім'я (за алфавітом):</label>
+                    <div class="sort-control">
+                        <button type="button" class="sort-toggle-btn" 
+                                data-sort-field="admin_name" 
+                                onclick="applySort('admin_name', 'admin_name_btn')">
+                            {% if current_sort_by == 'admin_name' %}
+                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                            {% else %}
+                                🔄 Сортувати
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="filter-option">
+                    <label>Ранг:</label>
+                    <div class="sort-control">
+                        <button type="button" class="sort-toggle-btn" 
+                                data-sort-field="admin_rank" 
+                                onclick="applySort('admin_rank', 'admin_rank_btn')">
+                            {% if current_sort_by == 'admin_rank' %}
+                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                            {% else %}
+                                🔄 Сортувати
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-option">
+                    <label>Попередження:</label>
+                    <div class="sort-control">
+                        <button type="button" class="sort-toggle-btn" 
+                                data-sort-field="warnings_count" 
+                                onclick="applySort('warnings_count', 'warnings_count_btn')">
+                            {% if current_sort_by == 'warnings_count' %}
+                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                            {% else %}
+                                🔄 Сортувати
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                
+                </form>
+                <div class="modal-buttons" style="margin-top: 30px; justify-content: center;">
+                <button type="button" class="delete-btn" onclick="resetSortFilters()">Скинути сортування</button>
+            </div>
+            
+        </div>
+    </div>
 
 </body>
 </html>

@@ -75,6 +75,119 @@ body {
     overflow: hidden; /* Щоб внутрішні елементи не виходили за межі */
 }
 
+/* --- НОВІ СТИЛІ ДЛЯ ЗАГОЛОВКА ТА ПІДРАХУНКУ (Завжди вертикально) --- */
+.table-header-info {
+    /* Використовуємо flexbox */
+    display: flex; 
+    
+    /* !!! Головна ЗМІНА: Встановлюємо вертикальне відображення як стандарт для всіх екранів !!! */
+    flex-direction: column; 
+    
+    /* Вирівнювання елементів по лівому краю */
+    align-items: flex-start;
+    
+    margin-bottom: 15px; /* Проміжок між блоком заголовка та таблицею */
+}
+
+.table-header-info h2 {
+    /* Прибираємо стандартний нижній margin у заголовка */
+    margin-bottom: 0;
+    font-size: 1.8em; 
+}
+
+.count-display {
+    font-size: 1.1em;
+    font-weight: normal;
+    color: #eee; 
+    margin: 0;
+    /* Додаємо невеликий вертикальний відступ між заголовком та підрахунком */
+    margin-top: 5px; 
+}
+
+/* Стиль для контейнера заголовка та кнопки "Додати" */
+.content-header {
+    display: flex;
+    justify-content: space-between; /* Розносить заголовок та кнопку по краях */
+    align-items: center; /* Вирівнює їх по вертикалі */
+    margin-bottom: 20px;
+}
+
+/* Стиль для нової кнопки "Додати співробітника" */
+.add-btn {
+    padding: 8px 15px;
+    background-color: #28a745; /* Зелений колір, як у кнопки "Редагувати" */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1em;
+}
+
+.add-btn:hover {
+    background-color: #218838;
+}
+
+/* Коректування для малих екранів */
+@media (max-width: 600px) {
+    .content-header {
+        flex-direction: column; /* На малих екранах розташовуємо один під одним */
+        align-items: flex-start;
+    }
+    .add-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
+/* Стиль для контейнера заголовка та кнопки "Додати" */
+.content-header {
+    display: flex;
+    justify-content: space-between; /* Розносить заголовок/лічильник та кнопку по краях */
+    align-items: center; /* Вирівнює їх по вертикалі */
+    margin-bottom: 20px;
+}
+
+.item-count-text {
+    font-size: 0.9em;
+    color: #ccc;
+    margin-top: -15px; /* Підтягуємо ближче до заголовка */
+    font-weight: bold;
+}
+
+/* Стиль для нової кнопки "Додати співробітника" */
+.add-btn {
+    padding: 8px 15px;
+    background-color: #28a745; /* Зелений колір */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 1em;
+    white-space: nowrap; /* Заборона переносу тексту */
+}
+
+.add-btn:hover {
+    background-color: #218838;
+}
+
+/* Коректування для малих екранів */
+@media (max-width: 600px) {
+    .content-header {
+        flex-direction: column; /* На малих екранах розташовуємо один під одним */
+        align-items: flex-start;
+    }
+    .add-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+    .item-count-text {
+        margin-top: 5px; /* Більший відступ, якщо перенесено */
+        font-weight: bold;
+    }
+}
+
 /* Верхній чорний блок для Пошуку */
 .search-bar-container {
     background-color: #000;
@@ -139,6 +252,88 @@ body {
     background-color: rgba(0, 0, 0, 0.1); /* Чергування кольорів рядків */
 }
 
+/* --- НОВІ СТИЛІ ДЛЯ ПОШУКУ ТА ФІЛЬТРА --- */
+.search-filter-wrapper {
+    display: flex;
+    gap: 10px; /* Проміжок між полем пошуку та кнопкою */
+    width: 100%;
+    max-width: 700px; /* Збільшуємо ширину контейнера, щоб вмістити кнопку */
+    align-items: center;
+}
+
+.search-input-wrapper {
+    flex-grow: 1; /* Поле пошуку займає весь доступний простір */
+    max-width: none; /* Прибираємо старе обмеження */
+}
+
+.filter-btn {
+    background-color: #f4f4f4;
+    color: #333;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+.filter-btn:hover {
+    background-color: #ddd;
+}
+
+/* --- СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА ФІЛЬТРА --- */
+.filter-modal-content h3 {
+    color: #483D8B;
+    margin-top: 20px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+}
+
+.filter-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px 0;
+    border-bottom: 1px dotted #ccc;
+}
+
+.filter-option label {
+    font-weight: bold;
+    color: #333;
+    margin-right: 20px;
+    flex-basis: 40%;
+}
+
+.filter-option .sort-control {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-grow: 1;
+}
+
+.filter-option select {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    flex-grow: 1;
+}
+
+.sort-toggle-btn {
+    background-color: #6c757d; /* Сірий колір */
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-basis: 120px; /* Фіксована ширина для кнопки "Зростання/Спадання" */
+}
+
+.sort-toggle-btn:hover {
+    background-color: #5a6268;
+}
 
 /* --- Адаптивність (Медіа-запити) --- */
 @media (max-width: 768px) {
@@ -178,10 +373,18 @@ body {
         padding: 8px 10px;
         font-size: 0.9em;
     }
+
+    .table-header-info {
+        /* Перемикаємо на вертикальне відображення, якщо екран занадто вузький */
+        flex-direction: column; 
+        align-items: flex-start;
+        gap: 5px; /* Невеликий проміжок між заголовком та кількістю */
+        margin-bottom: 10px;
+    }
 }
 
 /* Стилі для кнопок дій у таблиці */
-.edit-btn, .delete-btn, .save-btn {
+.edit-btn, .cancel-btn, .save-btn {
     padding: 6px 10px;
     margin: 5px 2px; /* Невеликий проміжок між кнопками */
     border: none;
@@ -195,8 +398,8 @@ body {
 .edit-btn:hover { background-color: #218838; }
 .save-btn { background-color: #007bff; }
 .save-btn:hover { background-color: #0056b3; }
-.delete-btn { background-color: #dc3545; } /* Червоний */
-.delete-btn:hover { background-color: #c82333; }
+.cancel-btn { background-color: #6c757d; } /* Червоний */
+.cancel-btn:hover { background-color: #5a6268; }
 
 /* --- СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА --- */
 .modal {
@@ -249,10 +452,69 @@ body {
 }
 
 .modal-buttons {
+    /* Змінюємо порядок: [Save/Cancel] <-----> [Delete] */
     display: flex;
-    /* Змінюємо вирівнювання, щоб розмістити кнопки "Видалити" та "Скасувати" праворуч, а "Зберегти" ліворуч */
-    justify-content: space-between; 
+    justify-content: space-between; /* Розтягує елементи на весь простір */
+    align-items: center;
     margin-top: 20px;
+}
+
+.modal-buttons-left {
+    /* Контейнер для кнопок "Зберегти зміни" та "Скасувати" */
+    display: flex;
+    gap: 10px; /* Проміжок між кнопками */
+}
+
+/* Додаємо фіксовану ширину для кнопок у модальному вікні, щоб вони були однаковими */
+.modal-buttons button {
+    /* Встановлюємо максимальну ширину, щоб кнопки мали однаковий розмір */
+    /* Зменшимо ширину зі 150px до 120px, щоб дати більше простору */
+    width: 120px; 
+    max-width: 100%; /* Гарантуємо, що кнопка не перевищить ширину батьківського контейнера */
+    text-align: center;
+    padding: 10px 10px; /* Трохи зменшимо padding */
+}
+
+.modal-buttons-delete-cancel {
+    /* Встановимо gap для проміжку між кнопками "Видалити" та "Скасувати" */
+    display: flex;
+    gap: 10px; /* Проміжок між кнопками */
+}
+
+@media (max-width: 480px) {
+    .modal-buttons {
+        /* Переходимо на вертикальне розташування, коли екран занадто вузький */
+        flex-direction: column; 
+        gap: 10px; /* Проміжок між групами кнопок */
+    }
+
+    .modal-buttons-left {
+        /* На малих екранах також робимо кнопки "Зберегти" та "Скасувати" вертикальними */
+        flex-direction: column; 
+        width: 100%; /* Розтягуємо контейнер на всю ширину */
+    }
+    
+    .modal-buttons button {
+        /* Встановлюємо повну ширину для вертикально розташованих кнопок */
+        width: 100%;
+        margin: 0; /* Прибираємо зовнішні відступи */
+    }
+}
+
+/* --- СТИЛІ ДЛЯ ЧЕРВОНОЇ КНОПКИ ВИДАЛЕННЯ --- */
+.delete-btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    color: white;
+    background-color: #dc3545; /* Червоний колір */
+    transition: background-color 0.3s;
+}
+
+.delete-btn:hover {
+    background-color: #c82333; /* Темніший червоний при наведенні */
 }
 
 /* Додамо контейнер для групування кнопок видалення та скасування, якщо це потрібно для кращого вирівнювання */
