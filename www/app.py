@@ -306,6 +306,24 @@ def check_webadmin_credentials(username, password):
         if conn:
             conn.close()
 
+# Функція для отримання рангу WebAdmin
+def get_webadmin_rank(username):
+    """Повертає ранг (webadmin_rank) користувача webadmin."""
+    conn = get_connection()
+    if conn is None:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT webadmin_rank FROM webadmin WHERE webadmin_name = %s", (username,))
+            result = cur.fetchone()
+            return result[0] if result else None
+    except Exception as e:
+        print(f"Помилка отримання рангу webadmin: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
 
 # --- НАЛАШТУВАННЯ FLASK ---
 app = Flask(__name__)
@@ -320,6 +338,40 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+# --- МАРШРУТ 3: СТОРІНКА ВХОДУ (login) ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        # 1. Отримання даних з форми
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        # 2. Перевірка облікових даних у базі даних
+        admin_info = check_webadmin_credentials(username, password) # <--- ВИКОРИСТОВУЄМО НОВУ ФУНКЦІЮ
+        rank = get_webadmin_rank(username) # Викликаємо нову функцію
+        
+        if admin_info:
+            # Успішний вхід: 
+            session['logged_in'] = True 
+            session['username'] = admin_info['webadmin_name'] # Зберігаємо ім'я користувача
+            session['webadmin_id'] = admin_info['webadmin_id'] # Зберігаємо ID
+
+            
+            session['rank'] = rank if rank else 'user' # Зберігаємо роль, або 'user' за замовчуванням
+
+            print(f"✅ Успішний вхід для користувача: {username}")
+            return redirect(url_for('home'))
+        else:
+            # Невдалий вхід
+            error = 'Невірне ім\'я користувача або пароль.'
+            print(f"❌ Невдалий вхід для користувача: {username}")
+            # Повертаємо користувача на сторінку логіну з повідомленням про помилку
+            return render_template('login.html', error=error)
+
+    # Метод GET: Просто відображаємо сторінку логіну
+    return render_template('login.html', title="Вхід до системи")
 
 # --- МАРШРУТ 1: ГОЛОВНА СТОРІНКА (helperinfo) ---
 @app.route('/')
@@ -344,7 +396,8 @@ def home():
         main_title = "Співробітники (HelperInfo)"
     
     item_count = len(helpers)
-    
+
+    user_rank = session.get('rank')
     # Параметри sort_by та sort_type будуть автоматично доступні в шаблоні 
     # завдяки request.args, тому їх окремо передавати не обов'язково.
     return render_template('index.html', 
@@ -352,7 +405,11 @@ def home():
         table_data=helpers,
         col_headers=["ID", "Ім'я", "Ранг", "Попереджень"],
         main_content_title=main_title,
-        item_count=item_count)
+        sort_by=sort_by,
+        sort_type=sort_type,
+        item_count=item_count,
+        user_rank=user_rank
+        )
 
 # --- МАРШРУТ 2: СТОРІНКА №1 (ticketinfo) ---
 @app.route('/tickets')
@@ -383,35 +440,6 @@ def tickets():
         col_headers=["ID", "Заявник", "Обробник", "Час (сек)", "Рейтинг"],
         main_content_title=main_title,
         item_count=item_count) # <--- Тимчасовий фікс, якщо була помилка з item_count
-
-# --- МАРШРУТ 3: СТОРІНКА ВХОДУ (login) ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        # 1. Отримання даних з форми
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        # 2. Перевірка облікових даних у базі даних
-        admin_info = check_webadmin_credentials(username, password) # <--- ВИКОРИСТОВУЄМО НОВУ ФУНКЦІЮ
-        
-        if admin_info:
-            # Успішний вхід: 
-            session['logged_in'] = True 
-            session['username'] = admin_info['webadmin_name'] # Зберігаємо ім'я користувача
-            session['webadmin_id'] = admin_info['webadmin_id'] # Зберігаємо ID
-
-            print(f"✅ Успішний вхід для користувача: {username}")
-            return redirect(url_for('home'))
-        else:
-            # Невдалий вхід
-            error = 'Невірне ім\'я користувача або пароль.'
-            print(f"❌ Невдалий вхід для користувача: {username}")
-            # Повертаємо користувача на сторінку логіну з повідомленням про помилку
-            return render_template('login.html', error=error)
-
-    # Метод GET: Просто відображаємо сторінку логіну
-    return render_template('login.html', title="Вхід до системи")
 
 # --- МАРШРУТ 4: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
 @app.route('/update_helper', methods=['POST'])
@@ -457,6 +485,16 @@ def add_helper():
         print(f"❌ Помилка додавання співробітника {name}.")
         
     return redirect(url_for('home'))
+
+# --- НОВИЙ МАРШРУТ 7: ПРИКЛАД СТОРІНКИ АДМІНА ---
+@app.route('/admin-page')
+# @login_required 
+def admin_page():
+    # Додаткова перевірка, щоб бути впевненим, що тільки адмін може її бачити
+    if session.get('rank') != 'SuperAdmin':
+        return redirect(url_for('home')) # Або інший маршрут для заборони доступу
+        
+    return "<h1>Вітаємо на сторінці Адміністратора!</h1>" # Замініть на render_template('admin_page.html')
 
 # Маршрут для виходу (із попереднього кроку)
 @app.route('/logout')
