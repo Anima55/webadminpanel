@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="nav-icon"><a href="/" style="color:white; text-decoration:none;">🛡️ ForgeRock</a></div> 
+            
+            {% if user_rank == 'SuperAdmin' %}
+            <a href="/admin-page" class="nav-button" style="background-color: #007bff;">🛠️ Адмін-Панель</a>
+            {% endif %}
+        </div>
+
+        <nav class="nav-right">
+            <a href="{{ url_for('home') }}" class="nav-button">HelperInfo</a>
+            <a href="{{ url_for('tickets') }}" class="nav-button">TicketInfo</a>
+            <a href="{{ url_for('logout') }}" class="nav-button" style="background-color: #dc3545;">Вихід</a>
+        </nav>
+    </header>
+    
+    <main class="site-body">
+        
+        <section class="main-block">
+            <script src="{{ url_for('script', filename='filterticket.js') }}"></script>
+
+            <div class="search-bar-container">
+                <div class="search-filter-wrapper">
+                    <div class="search-input-wrapper">
+                        <form method="GET" action="{{ request.path }}">
+                        <input type="text" placeholder="Пошук..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
+                        </form>
+                    </div>
+                    <button class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID Тікета</th>
+                            <th>Користувач (Submitter)</th>
+                            <th>Хендлер (Helper)</th>
+                            <th>Витрачений час (хв)</th>
+                            <th>Оцінка вирішення</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in ticket_list %}
+                        <tr>
+                            <td>{{ ticket.ticket_id }}</td>
+                            <td>{{ ticket.submitter_username }}</td>
+                            <td>{{ ticket.handler_name if ticket.handler_name else 'Не призначено' }}</td>
+                            <td>{{ ticket.time_spent }}</td>
+                            <td>
+                                {% if ticket.resolution_rating is not none %}
+                                    {{ '⭐' * ticket.resolution_rating }} ({{ ticket.resolution_rating }}/5)
+                                {% else %}
+                                    Н/Д
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not ticket_list %}
+                        <tr>
+                            <td colspan="5" style="text-align: center;">Тікети не знайдено.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+        </section>
+        
+    </main>
+
+</body>
+</html>

@@ -17,8 +17,8 @@
         </div>
 
         <nav class="nav-right">
-            <a href="/" class="nav-button">HelperInfo</a>
-            <a href="/tickets" class="nav-button">TicketInfo</a>
+            <a href="{{ url_for('home') }}" class="nav-button">HelperInfo</a>
+            <a href="{{ url_for('tickets') }}" class="nav-button">TicketInfo</a>
             <a href="{{ url_for('logout') }}" class="nav-button" style="background-color: #dc3545;">Вихід</a>
             
         </nav>

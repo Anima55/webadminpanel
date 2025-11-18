@@ -191,19 +191,35 @@ def get_all_tickets(sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Дода�
 
     try:
         with conn.cursor() as cur:
-            cur.execute(sql) # Виконуємо вже відформатований запит
-            column_names = [desc[0] for desc in cur.description]
-            tickets = cur.fetchall()
+            # SQL-запит з JOIN для отримання імені хендлера з helperinfo
+            cur.execute("""
+                SELECT 
+                    t.ticket_id, 
+                    t.submitter_username, 
+                    h.admin_name AS handler_name,
+                    t.time_spent, 
+                    t.resolution_rating
+                FROM 
+                    ticketinfo t
+                LEFT JOIN 
+                    helperinfo h ON t.handler_helper_id = h.helper_id
+                ORDER BY 
+                    t.ticket_id DESC;
+            """)
             
-            data = []
-            for row in tickets:
-                data.append(dict(zip(column_names, row)))
-            return data
+            # Отримання імен колонок
+            columns = [desc[0] for desc in cur.description]
+            tickets_data = cur.fetchall()
+            
+            # Перетворення в список словників для зручності в Jinja2
+            return [dict(zip(columns, ticket)) for ticket in tickets_data]
+            
     except Exception as e:
-        # print(f"❌ Помилка читання даних ticketinfo: {e}")
+        print(f"❌ Помилка отримання тікетів з БД: {e}")
         return []
     finally:
-        if conn: conn.close()
+        if conn:
+            conn.close()
 
 # Функція: Пошук тікетів за іменем заявника
 def get_tickets_by_multi_search(search_query, sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Додано параметри сортування
@@ -418,7 +434,8 @@ def tickets():
     """Відображає таблицю ticketinfo, з підтримкою пошуку та сортування.""" # <--- ЗМІНА
     
     search_query = request.args.get('query', '')
-    
+    user_rank = session.get('rank')
+
     # 1. Отримуємо параметри сортування з URL 
     sort_by = request.args.get('sort_by', '')
     sort_type = request.args.get('sort_type', 'asc').upper() # ASC або DESC
@@ -434,12 +451,15 @@ def tickets():
     
     item_count = len(tickets_data) # <--- Тимчасовий фікс, якщо була помилка з item_count
     
-    return render_template('index.html', 
+    return render_template('tickets.html', 
         title="Ticket Information", 
         table_data=tickets_data,
         col_headers=["ID", "Заявник", "Обробник", "Час (сек)", "Рейтинг"],
         main_content_title=main_title,
-        item_count=item_count) # <--- Тимчасовий фікс, якщо була помилка з item_count
+        item_count=item_count,
+        ticket_list=tickets_data,
+        user_rank=user_rank
+        ) # <--- Тимчасовий фікс, якщо була помилка з item_count
 
 # --- МАРШРУТ 4: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
 @app.route('/update_helper', methods=['POST'])
