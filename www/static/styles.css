@@ -530,3 +530,96 @@ body {
     /* Автоматичний правий відступ відсуває решту елементів */
     margin-right: auto;
 }
+
+/* ==========================================================
+// СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА ФІЛЬТРАЦІЇ ТІКЕТІВ
+// ========================================================== */
+
+/* Основний контейнер модального вікна */
+.modal {
+    display: none; /* Приховано за замовчуванням */
+    position: fixed; /* Залишатися на місці */
+    z-index: 10; /* Поверх усього */
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); /* Чорний з прозорістю */
+    padding-top: 60px;
+}
+
+/* Вміст модального вікна */
+.modal-content {
+    background-color: #3e3e3e; /* Темний фон для вмісту */
+    margin: 5% auto; /* 5% від верху і по центру */
+    padding: 20px;
+    border: 1px solid #555;
+    width: 80%; 
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    color: #fff; /* Білий текст */
+}
+
+/* Кнопка закриття (X) */
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Опція фільтрації (рядок з назвою та кнопками) */
+.filter-option {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #444;
+}
+
+/* Стилі для кнопок сортування */
+.filter-option button {
+    cursor: pointer;
+    padding: 8px 15px;
+    margin-left: 5px;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff; /* Основний синій колір */
+    color: white;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.filter-option button:hover {
+    background-color: #0056b3;
+}
+
+/* Контейнер для кнопки скидання */
+.reset-btn-container {
+    margin-top: 20px;
+    text-align: right;
+}
+
+/* Стиль для кнопки "Скинути Сортування" */
+.reset-btn {
+    /* Наслідує стилі .nav-button, але змінюємо колір */
+    background-color: #f0ad4e !important; /* Помаранчевий */
+    font-weight: bold;
+    padding: 10px 15px;
+}
+
+.reset-btn:hover {
+    background-color: #ec971f !important; /* Темніший помаранчевий */
+}

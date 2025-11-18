@@ -36,9 +36,63 @@
                         <input type="text" placeholder="Пошук..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
                         </form>
                     </div>
-                    <button class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
+                    <button class="filter-btn" onclick="openFilterTicketModal()">⚙️ Фільтр</button>
                 </div>
             </div>
+
+            <div id="ticketFilterModal" class="modal">
+        <div class="modal-content filter-modal-content">
+            <span class="close-btn" onclick="closeFilterTicketModal()">&times;</span>
+            <h2>Налаштування сортування</h2>
+            
+            <form method="GET" action="{{ request.path }}" id="filterForm">
+                
+                <input type="hidden" name="query" value="{{ request.args.get('query', '') }}">
+                
+                <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
+                <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
+
+                <h3>Виберіть критерій сортування:</h3>
+
+                {% set current_sort_by = sort_by %}
+                {% set current_sort_type = sort_type %}
+                
+                <div class="filter-option">
+                    <label>Час (сек):</label>
+                    <div class="sort-control">
+                        <button type="button" class="sort-toggle-btn" 
+                                data-sort-field="time_spent"  onclick="applyTicketSort('time_spent', 'time_spent_btn')">
+                            {% if current_sort_by == 'time_spent' %}
+                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                            {% else %}
+                                🔄 Сортувати
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-option">
+                    <label>Оцінка:</label>
+                    <div class="sort-control">
+                        <button type="button" class="sort-toggle-btn" 
+                                data-sort-field="resolution_rating"  onclick="applyTicketSort('resolution_rating', 'resolution_rating_btn')">
+                            {% if current_sort_by == 'resolution_rating' %}
+                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                            {% else %}
+                                🔄 Сортувати
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                
+                </form>
+                <div class="modal-buttons" style="margin-top: 30px; justify-content: center;">
+                <button type="button" class="delete-btn" onclick="resetSortTicketFilters()">Скинути сортування</button>
+            </div>
+            
+        </div>
+    </div>
+            
             <div class="table-container">
                 <table class="data-table">
                     <thead>

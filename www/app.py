@@ -184,28 +184,15 @@ def get_all_tickets(sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Дода�
         t.resolution_rating
     FROM public.ticketinfo AS t
     LEFT JOIN public.helperinfo AS h ON t.handler_helper_id = h.helper_id
-    ORDER BY {order_column} {order_direction};
-    """
+    ORDER BY {order_column} {order_direction}; 
+    """ # <--- ЦЕЙ ЗАПИТ ТЕПЕР ВИКОРИСТОВУЄТЬСЯ
     conn = get_connection()
     if conn is None: return []
 
     try:
         with conn.cursor() as cur:
-            # SQL-запит з JOIN для отримання імені хендлера з helperinfo
-            cur.execute("""
-                SELECT 
-                    t.ticket_id, 
-                    t.submitter_username, 
-                    h.admin_name AS handler_name,
-                    t.time_spent, 
-                    t.resolution_rating
-                FROM 
-                    ticketinfo t
-                LEFT JOIN 
-                    helperinfo h ON t.handler_helper_id = h.helper_id
-                ORDER BY 
-                    t.ticket_id DESC;
-            """)
+            # !!! ЗМІНА: ВИКОРИСТОВУЄМО ДИНАМІЧНИЙ SQL-ЗАПИТ
+            cur.execute(sql) 
             
             # Отримання імен колонок
             columns = [desc[0] for desc in cur.description]
@@ -458,7 +445,9 @@ def tickets():
         main_content_title=main_title,
         item_count=item_count,
         ticket_list=tickets_data,
-        user_rank=user_rank
+        user_rank=user_rank,
+        sort_by=sort_by,
+        sort_type=sort_type
         ) # <--- Тимчасовий фікс, якщо була помилка з item_count
 
 # --- МАРШРУТ 4: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
