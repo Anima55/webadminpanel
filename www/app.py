@@ -3,18 +3,16 @@ import psycopg
 import os
 from functools import wraps
 
-# --- ПОЧАТОК КОДУ З GRUD.PY (Для функцій БД) ---
-# --- КОНФІГУРАЦІЯ БАЗИ ДАНИХ (ЗМІНІТЬ НА ВАШІ ДАНІ!) ---
+# DB_NAME - назва бд, DB_USER - Логін DB_PASSWORD - Пароль, DB_HOST - IP хоста DB_PORT - Порт
 DB_NAME = os.environ.get('DB_NAME', 'wdb')
 DB_USER = os.environ.get('DB_USER', 'webadmin')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', 'admin')
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = os.environ.get('DB_PORT', '5432')
 
-# Рядок підключення у форматі URI
-# ЗМІНІТЬ ЦЕЙ РЯДОК НА ВАШІ РЕАЛЬНІ ПАРАМЕТРИ ПІДКЛЮЧЕННЯ
 CONN_STRING = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+# Підключення до бд
 def get_connection():
     """Створює та повертає об'єкт підключення."""
     try:
@@ -24,6 +22,7 @@ def get_connection():
         # print(f"Помилка підключення до бази даних: {e}")
         return None
 
+# Функцій для табліци HelperInfo
 # Функція для отримання всіх помічників (для головної сторінки)
 def get_all_helpers(sort_by=None, sort_type='ASC'): # <--- ДОДАТИ: параметри сортування
     """Повертає всіх помічників з таблиці helperinfo, з можливістю сортування."""
@@ -97,7 +96,7 @@ def get_helpers_by_search(search_query, sort_by=None, sort_type='ASC'): # <--- �
     finally:
         if conn: conn.close()
 
-# НОВА ФУНКЦІЯ: Оновлення даних співробітника
+# ФУНКЦІЯ: Оновлення даних співробітника
 def update_helper_data(helper_id, name, rank, warnings):
     """Оновлює дані співробітника в таблиці helperinfo."""
     sql = """
@@ -120,7 +119,7 @@ def update_helper_data(helper_id, name, rank, warnings):
     finally:
         if conn: conn.close()
 
-# НОВА ФУНКЦІЯ: Видалення співробітника
+# ФУНКЦІЯ: Видалення співробітника
 def delete_helper_data(helper_id):
     """Видаляє співробітника з таблиці helperinfo за ID."""
     sql = "DELETE FROM public.helperinfo WHERE helper_id = %s;"
@@ -145,7 +144,7 @@ def delete_helper_data(helper_id):
     finally:
         if conn: conn.close()
 
-# НОВА ФУНКЦІЯ: Додавання нового співробітника
+# ФУНКЦІЯ: Додавання нового співробітника
 def insert_helper_data(name, rank, warnings):
     """Додає нового співробітника в таблицю helperinfo."""
     sql = """
@@ -167,6 +166,7 @@ def insert_helper_data(name, rank, warnings):
     finally:
         if conn: conn.close()
 
+# Функцій для табліци TicketInfo
 # Функція для отримання всіх тікетів
 def get_all_tickets(sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Додано параметри сортування
     """Повертає всі тікети з таблиці ticketinfo, з можливістю сортування."""
@@ -276,7 +276,7 @@ def get_tickets_by_multi_search(search_query, sort_by=None, sort_type='ASC'): # 
     finally:
         if conn: conn.close()
 
-# НОВА ФУНКЦІЯ: для перевірки облікових даних webadmin
+# ФУНКЦІЯ: для перевірки облікових даних webadmin
 def check_webadmin_credentials(username, password):
     """
     Перевіряє облікові дані webadmin в таблиці public.webadmin.
