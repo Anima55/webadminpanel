@@ -121,24 +121,30 @@ def update_helper_data(helper_id, name, rank, warnings):
 
 # ФУНКЦІЯ: Видалення співробітника
 def delete_helper_data(helper_id):
-    """Видаляє співробітника з таблиці helperinfo за ID."""
-    sql = "DELETE FROM public.helperinfo WHERE helper_id = %s;"
+    """Видаляє співробітника з таблиці helperinfo за ID, попередньо видаливши всі пов'язані тікети."""
     conn = get_connection()
     if conn is None: return False
 
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, (helper_id,))
+            # 1. Видаляємо всі тікети, пов'язані з цим співробітником (handler_helper_id)
+            # Примітка: Тікети, де helper був призначений (handler_helper_id), будуть видалені.
+            sql_delete_tickets = "DELETE FROM public.ticketinfo WHERE handler_helper_id = %s;"
+            cur.execute(sql_delete_tickets, (helper_id,))
+            deleted_tickets_count = cur.rowcount
+            print(f"✅ Видалено {deleted_tickets_count} пов'язаних тікетів для Helper ID {helper_id}.")
+            
+            # 2. Видаляємо самого співробітника з helperinfo
+            sql_delete_helper = "DELETE FROM public.helperinfo WHERE helper_id = %s;"
+            cur.execute(sql_delete_helper, (helper_id,))
+        
         conn.commit()
-        # Повертаємо True, якщо видалено принаймні один рядок
+        # Повертаємо True, якщо видалено принаймні один рядок співробітника
         return cur.rowcount > 0 
-    except psycopg.errors.ForeignKeyViolation as e:
-        # Ця помилка виникає, якщо співробітник має тікети (Foreign Key Constraint)
-        print(f"❌ Помилка видалення: Співробітник ID {helper_id} має пов'язані записи в інших таблицях (тікети).")
-        conn.rollback()
-        return False
+        
     except Exception as e:
-        print(f"❌ Невідома помилка видалення: {e}")
+        # Обробляємо будь-яку іншу помилку і відкочуємо транзакцію
+        print(f"❌ Помилка видалення співробітника ID {helper_id} або пов'язаних тікетів: {e}")
         conn.rollback()
         return False
     finally:
