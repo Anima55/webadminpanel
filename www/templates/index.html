@@ -175,7 +175,13 @@
                 <input type="text" id="add_admin_name" name="admin_name" required>
                 
                 <label for="add_admin_rank">Ранг:</label>
-                <input type="text" id="add_admin_rank" name="admin_rank" required>
+                <select id="modal_admin_rank" name="admin_rank" required>
+                    <option value="Moder">Moder</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Curator">Curator</option>
+                    <option value="Manager">Manager</option>
+                    <option value="SuperAdmin">SuperAdmin</option>
+                </select>
                 
                 <label for="add_warnings_count">Попередження (не обов'язково, 0 за замовчуванням):</label>
                 <input type="number" id="add_warnings_count" name="warnings_count" min="0" value="0">
@@ -198,7 +204,13 @@
                 <input type="text" id="modal_admin_name" name="admin_name" required>
                 
                 <label for="modal_admin_rank">Ранг:</label>
-                <input type="text" id="modal_admin_rank" name="admin_rank" required>
+                <select id="modal_admin_rank" name="admin_rank" required>
+                    <option value="Moder">Moder</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Curator">Curator</option>
+                    <option value="Manager">Manager</option>
+                    <option value="SuperAdmin">SuperAdmin</option>
+                </select>
                 
                 <label for="modal_warnings_count">Попередження:</label>
                 <input type="number" id="modal_warnings_count" name="warnings_count" min="0" required>

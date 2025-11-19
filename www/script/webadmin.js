@@ -1,5 +1,5 @@
 // ==========================================================
-// ГЛОБАЛЬНІ ЗМІННІ ТА ФУНКЦІЇ ДЛЯ МОДАЛЬНИХ ВІКОН
+// ГЛОБАЛЬНІ ЗМІННІ ТА ФУНКЦІЇ ДЛЯ МОДАЛЬНИХ ВІКОН WEBADMIN
 // ==========================================================
 
 // Оголошуємо функції відкриття та закриття глобально
@@ -9,36 +9,35 @@
  * Відкриває модальне вікно редагування та заповнює його даними.
  * @param {HTMLElement} button Кнопка "Редагувати", що була натиснута.
  */
-window.openEditModal = function(button) {
-    const editModal = document.getElementById('editModal');
+window.openEditWebadminModal = function(button) {
+    const editModal = document.getElementById('editWebadminModal');
     if (!editModal) return;
 
     const row = button.closest('tr');
+    // Отримуємо дані з data-атрибутів
     const id = row.dataset.id;
     const name = row.dataset.name;
     const rank = row.dataset.rank;
-    const warnings = row.dataset.warnings;
-
-    // Заповнюємо поля форми
-    document.getElementById('modal_helper_id').value = id;
-    document.getElementById('modal_admin_name').value = name;
-    document.getElementById('modal_admin_rank').value = rank;
-    document.getElementById('modal_warnings_count').value = warnings;
+    
+    // Заповнюємо поля форми редагування
+    document.getElementById('modal_webadmin_id').value = id;
+    document.getElementById('modal_webadmin_name').value = name;
+    document.getElementById('modal_webadmin_rank').value = rank;
     
     // Заповнюємо приховане поле ID для форми видалення
-    const deleteIdInput = document.getElementById('modal_delete_helper_id');
+    const deleteIdInput = document.getElementById('modal_delete_webadmin_id');
     if (deleteIdInput) {
         deleteIdInput.value = id;
     }
-
+    
     editModal.style.display = 'block';
 };
 
 /**
  * Закриває модальне вікно редагування.
  */
-window.closeEditModal = function() {
-    const editModal = document.getElementById('editModal');
+window.closeEditWebadminModal = function() {
+    const editModal = document.getElementById('editWebadminModal');
     if (editModal) {
         editModal.style.display = 'none';
     }
@@ -47,33 +46,28 @@ window.closeEditModal = function() {
 /**
  * Відкриває модальне вікно додавання та очищає форму.
  */
-window.openAddModal = function() {
-    const addModal = document.getElementById('addModal');
+window.openAddWebadminModal = function() {
+    const addModal = document.getElementById('addWebadminModal');
     if (addModal) {
+        // Очищення полів форми при відкритті
+        document.getElementById('add_webadmin_name').value = '';
         
-        // 1. Очищення текстового поля імені
-        document.getElementById('add_admin_name').value = '';
-        
-        // 2. ВИПРАВЛЕННЯ: Коректне скидання поля Рангу (<select>)
-        // Встановлюємо SELECT на першу опцію ("Moder"), оскільки немає пустого значення.
-        const rankSelect = document.getElementById('add_admin_rank');
+        // ВИПРАВЛЕННЯ: Коректне скидання поля Рангу (<select>)
+        const rankSelect = document.getElementById('add_webadmin_rank');
         if (rankSelect && rankSelect.options.length > 0) {
-            rankSelect.selectedIndex = 0; // Обираємо першу опцію
+            rankSelect.selectedIndex = 0; // Обираємо першу опцію ("Moder")
         }
         
-        // 3. Скидання лічильника попереджень на 0
-        document.getElementById('add_warnings_count').value = '0'; 
+        document.getElementById('add_webadmin_password').value = ''; 
         
-        // 4. Відображення модального вікна
         addModal.style.display = 'block';
     }
 };
-
 /**
  * Закриває модальне вікно додавання.
  */
-window.closeAddModal = function() {
-    const addModal = document.getElementById('addModal');
+window.closeAddWebadminModal = function() {
+    const addModal = document.getElementById('addWebadminModal');
     if (addModal) {
         addModal.style.display = 'none';
     }
@@ -84,21 +78,21 @@ window.closeAddModal = function() {
 // ОБРОБНИКИ ПОДІЙ (DOM READY)
 // ==========================================================
 document.addEventListener('DOMContentLoaded', (event) => {
-    const editModal = document.getElementById('editModal');
-    const addModal = document.getElementById('addModal');
+    const editModal = document.getElementById('editWebadminModal');
+    const addModal = document.getElementById('addWebadminModal');
     
     // Обробники для кнопки закриття (X)
     if (editModal) {
         const closeBtnEdit = editModal.querySelector('.close-btn');
         if (closeBtnEdit) {
-            closeBtnEdit.addEventListener('click', window.closeEditModal);
+            closeBtnEdit.addEventListener('click', window.closeEditWebadminModal);
         }
     }
     
     if (addModal) {
         const closeBtnAdd = addModal.querySelector('.close-btn');
         if (closeBtnAdd) {
-            closeBtnAdd.addEventListener('click', window.closeAddModal);
+            closeBtnAdd.addEventListener('click', window.closeAddWebadminModal);
         }
     }
     
@@ -106,12 +100,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
     window.onclick = function(event) {
         // Закрити модальне вікно редагування
         if (editModal && event.target === editModal) {
-            window.closeEditModal();
+            window.closeEditWebadminModal();
         }
         
         // Закрити модальне вікно додавання
         if (addModal && event.target === addModal) {
-            window.closeAddModal();
+            window.closeAddWebadminModal();
         }
-    }
+    };
 });

@@ -67,3 +67,18 @@ window.resetSortFilters = function() {
     // 3. Закриваємо модальне вікно
     closeFilterModal();
 }
+// ==========================================================
+// ГЛОБАЛЬНИЙ ОБРОБНИК ЗАКРИТТЯ МОДАЛЬНОГО ВІКНА
+// ==========================================================
+document.addEventListener('DOMContentLoaded', (event) => {
+    const filterModal = document.getElementById('filterModal');
+    
+    if (filterModal) {
+        // Закриття при кліку поза вікном (оверлей)
+        window.onclick = function(event) {
+            if (event.target === filterModal) {
+                closeFilterModal();
+            }
+        };
+    }
+});

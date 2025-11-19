@@ -1,2 +1,196 @@
 <!DOCTYPE html>
 <html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="nav-icon"><a href="/" style="color:white; text-decoration:none;">🛡️ ForgeRock</a></div> 
+            {% if user_rank == 'SuperAdmin' %}
+            <a href="/admin-page" class="nav-button" style="background-color: #007bff; margin-left: 10px;">🛠️ Адмін-Панель</a>
+            {% endif %}
+        </div>
+
+        <nav class="nav-right">
+            <a href="{{ url_for('home') }}" class="nav-button">HelperInfo</a>
+            <a href="{{ url_for('tickets') }}" class="nav-button">TicketInfo</a>
+            <a href="{{ url_for('logout') }}" class="nav-button" style="background-color: #dc3545;">Вихід</a>
+            
+        </nav>
+    </header>
+    <main class="site-body">
+        
+        <section class="main-block">
+            <script src="{{ url_for('script', filename='filter.js') }}"></script>
+            <script src="{{ url_for('script', filename='webadmin.js') }}"></script> 
+
+            <div class="search-bar-container">
+                <div class="search-filter-wrapper">
+                    <div class="search-input-wrapper">
+                        <form method="GET" action="{{ request.path }}">
+                        <input type="text" placeholder="Пошук (Ім'я, Ранг, ID)..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
+                        </form>
+                    </div>
+                    <button class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button> 
+                    <button class="add-btn" onclick="openAddWebadminModal()">➕ Додати WebAdmin</button>
+                </div>
+            </div>
+
+            <div id="filterModal" class="modal">
+                <div class="modal-content filter-modal-content">
+                    <span class="close-btn" onclick="closeFilterModal()">&times;</span>
+                    <h2>Налаштування сортування (WebAdmin)</h2>
+                    
+                    <form method="GET" action="{{ request.path }}" id="filterForm">
+                        
+                        <input type="hidden" name="query" value="{{ request.args.get('query', '') }}">
+                        
+                        <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
+                        <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
+
+                        <h3>Виберіть критерій сортування:</h3>
+
+                        {% set current_sort_by = request.args.get('sort_by', '') %}
+                        {% set current_sort_type = request.args.get('sort_type', 'asc') %}
+
+                        <div class="filter-option">
+                            <label>Ім'я (за алфавітом):</label>
+                            <div class="sort-control">
+                                <button type="button" class="sort-toggle-btn" 
+                                        data-sort-field="webadmin_name" 
+                                        onclick="applySort('webadmin_name', 'webadmin_name_btn')">
+                                    {% if current_sort_by == 'webadmin_name' %}
+                                        {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                                    {% else %}
+                                        🔄 Сортувати
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="filter-option">
+                            <label>Ранг:</label>
+                            <div class="sort-control">
+                                <button type="button" class="sort-toggle-btn" 
+                                        data-sort-field="webadmin_rank" 
+                                        onclick="applySort('webadmin_rank', 'webadmin_rank_btn')">
+                                    {% if current_sort_by == 'webadmin_rank' %}
+                                        {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                                    {% else %}
+                                        🔄 Сортувати
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </div>
+
+                    </form>
+                    
+                    <div class="modal-buttons" style="margin-top: 30px; justify-content: center;">
+                        <button type="button" class="delete-btn" onclick="resetSortFilters()">Скинути сортування</button>
+                    </div>
+
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID WebAdmin</th>
+                            <th>Ім'я</th>
+                            <th>Ранг</th>
+                            <th>Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for admin in webadmin_list %}
+                        <tr data-id="{{ admin.webadmin_id }}" data-name="{{ admin.webadmin_name }}" data-rank="{{ admin.webadmin_rank }}">
+                            <td>{{ admin.webadmin_id }}</td>
+                            <td>{{ admin.webadmin_name }}</td>
+                            <td>{{ admin.webadmin_rank }}</td>
+                            <td>
+                                <button class="edit-btn" onclick="openEditWebadminModal(this)">✏️ Редагувати</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not webadmin_list %}
+                        <tr>
+                            <td colspan="4" style="text-align: center;">Веб-адміни не знайдено.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="addWebadminModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="closeAddWebadminModal()">&times;</span>
+                    <h2>Додати нового WebAdmin</h2>
+                    
+                    <form method="POST" action="{{ url_for('add_webadmin') }}" id="addForm">
+                        
+                        <label for="add_webadmin_name">Ім'я:</label>
+                        <input type="text" id="add_webadmin_name" name="webadmin_name" required>
+                        
+                        <label for="add_webadmin_rank">Ранг:</label>
+                        <select id="modal_webadmin_rank" name="webadmin_rank" required>
+                            <option value="Curator">Curator</option>
+                            <option value="Manager">Manager</option>
+                            <option value="SuperAdmin">SuperAdmin</option>
+                        </select>
+
+                        <label for="add_webadmin_password">Пароль:</label>
+                        <input type="password" id="add_webadmin_password" name="webadmin_password" required>
+                        
+                        <div class="modal-buttons" style="margin-top: 20px; justify-content: center;">
+                            <button type="submit" class="save-btn">Додати WebAdmin</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div id="editWebadminModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="closeEditWebadminModal()">&times;</span>
+                    <h2>Редагувати WebAdmin</h2>
+                    
+                    <form method="POST" action="{{ url_for('update_webadmin') }}" id="editForm">
+                        <input type="hidden" name="webadmin_id" id="modal_webadmin_id">
+                        
+                        <label for="modal_webadmin_name">Ім'я:</label>
+                        <input type="text" id="modal_webadmin_name" name="webadmin_name" required>
+                        
+                        <label for="modal_webadmin_rank">Ранг:</label>
+                        <select id="modal_webadmin_rank" name="webadmin_rank" required>
+                            <option value="Curator">Curator</option>
+                            <option value="Manager">Manager</option>
+                            <option value="SuperAdmin">SuperAdmin</option>
+                        </select>
+                        
+                        <div class="modal-buttons">
+                            <div class="modal-buttons-left">
+                                <button type="submit" class="save-btn">Зберегти зміни</button>
+                        </div>
+                    </form>
+                    
+                    <div class="modal-buttons-delete-cancel">
+                        <form method="POST" action="{{ url_for('delete_webadmin') }}" id="deleteForm" style="display:inline;">
+                            <input type="hidden" name="webadmin_id" id="modal_delete_webadmin_id">
+                            <button type="submit" class="delete-btn" 
+                                    onclick="return confirm('Ви впевнені, що хочете видалити WebAdmin ID ' + document.getElementById('modal_delete_webadmin_id').value + '?');">
+                                Видалити
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>

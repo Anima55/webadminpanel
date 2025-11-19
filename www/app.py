@@ -327,6 +327,147 @@ def get_webadmin_rank(username):
         if conn:
             conn.close()
 
+# ==========================================================
+# Функцій для табліци WebAdmin
+# ==========================================================
+
+# Функція для отримання всіх веб-адмінів
+def get_all_webadmins(sort_by=None, sort_type='ASC'): 
+    """Повертає всіх веб-адмінів з таблиці webadmin, з можливістю сортування."""
+    
+    # Виключаємо webadmin_password
+    valid_sort_fields = ['webadmin_id', 'webadmin_name', 'webadmin_rank'] 
+    order_column = sort_by if sort_by in valid_sort_fields else 'webadmin_id'
+    order_direction = sort_type.upper() if sort_type.upper() in ('ASC', 'DESC') else 'ASC'
+    
+    sql = f"""
+    SELECT webadmin_id, webadmin_name, webadmin_rank 
+    FROM public.webadmin 
+    ORDER BY {order_column} {order_direction};
+    """
+    conn = get_connection()
+    if conn is None: return [] 
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            column_names = [desc[0] for desc in cur.description]
+            webadmins = cur.fetchall()
+            
+            data = []
+            for row in webadmins:
+                data.append(dict(zip(column_names, row)))
+            return data
+
+    except Exception as e:
+        print(f"❌ Помилка читання даних webadmin: {e}")
+        return []
+    finally:
+        if conn: conn.close()
+
+# Функція для пошуку веб-адмінів
+def get_webadmins_by_search(search_query, sort_by=None, sort_type='ASC'):
+    """Повертає веб-адмінів, які відповідають search_query, з сортуванням."""
+    conn = get_connection()
+    if conn is None: return []
+
+    valid_sort_fields = ['webadmin_id', 'webadmin_name', 'webadmin_rank']
+    order_column = sort_by if sort_by in valid_sort_fields else 'webadmin_id'
+    order_direction = sort_type.upper() if sort_type.upper() in ('ASC', 'DESC') else 'ASC'
+
+    sql = f"""
+    SELECT webadmin_id, webadmin_name, webadmin_rank
+    FROM public.webadmin 
+    WHERE 
+        webadmin_name ILIKE %s OR 
+        webadmin_rank ILIKE %s OR
+        CAST(webadmin_id AS TEXT) ILIKE %s 
+    ORDER BY {order_column} {order_direction}; 
+    """
+    search_pattern = f"%{search_query}%" 
+    params = (search_pattern, search_pattern, search_pattern)
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params) 
+            column_names = [desc[0] for desc in cur.description]
+            webadmins = cur.fetchall()
+            
+            data = []
+            for row in webadmins:
+                data.append(dict(zip(column_names, row)))
+            return data
+
+    except Exception as e:
+        print(f"❌ Помилка читання даних webadmin з пошуком: {e}")
+        return []
+    finally:
+        if conn: conn.close()
+
+# ФУНКЦІЯ: Оновлення даних веб-адміна (без зміни пароля)
+def update_webadmin_data(webadmin_id, name, rank):
+    """Оновлює ім'я та ранг веб-адміна в таблиці webadmin."""
+    sql = """
+    UPDATE public.webadmin
+    SET webadmin_name = %s, webadmin_rank = %s
+    WHERE webadmin_id = %s;
+    """
+    conn = get_connection()
+    if conn is None: return False
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (name, rank, webadmin_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Помилка оновлення даних веб-адміна ID {webadmin_id}: {e}")
+        conn.rollback()
+        return False
+    finally:
+        if conn: conn.close()
+
+# ФУНКЦІЯ: Видалення веб-адміна
+def delete_webadmin_data(webadmin_id):
+    """Видаляє веб-адміна з таблиці webadmin за ID."""
+    sql = "DELETE FROM public.webadmin WHERE webadmin_id = %s;"
+    conn = get_connection()
+    if conn is None: return False
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (webadmin_id,))
+        conn.commit()
+        return cur.rowcount > 0 
+    except Exception as e:
+        print(f"❌ Помилка видалення веб-адміна ID {webadmin_id}: {e}")
+        conn.rollback()
+        return False
+    finally:
+        if conn: conn.close()
+
+# ФУНКЦІЯ: Додавання нового веб-адміна
+def insert_webadmin_data(name, rank, password):
+    """Додає нового веб-адміна в таблицю webadmin."""
+    # УВАГА: У реальному додатку тут слід використовувати хешування пароля!
+    sql = """
+    INSERT INTO public.webadmin (webadmin_name, webadmin_rank, webadmin_password)
+    VALUES (%s, %s, %s);
+    """
+    conn = get_connection()
+    if conn is None: return False
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (name, rank, password))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Помилка додавання нового веб-адміна: {e}")
+        conn.rollback()
+        return False
+    finally:
+        if conn: conn.close()
 
 # --- НАЛАШТУВАННЯ FLASK ---
 app = Flask(__name__)
@@ -495,15 +636,94 @@ def add_helper():
         
     return redirect(url_for('home'))
 
-# --- НОВИЙ МАРШРУТ 7: ПРИКЛАД СТОРІНКИ АДМІНА ---
-@app.route('/admin-page')
-# @login_required 
+# --- МАРШРУТ 7: СТОРІНКА АДМІНА ---
+@app.route('/admin-page', methods=['GET'])
+# @login_required # Розкоментуйте, коли реалізуєте login_required
 def admin_page():
-    # Додаткова перевірка, щоб бути впевненим, що тільки адмін може її бачити
+    # Перевірка на SuperAdmin (якщо не закоментовано login_required, це не є критичним)
     if session.get('rank') != 'SuperAdmin':
-        return redirect(url_for('home')) # Або інший маршрут для заборони доступу
+        return redirect(url_for('home')) 
+    
+    # Параметри сортування
+    sort_by = request.args.get('sort_by')
+    sort_type = request.args.get('sort_type', 'asc')
+    
+    # Пошук
+    search_query = request.args.get('query')
+    
+    if search_query:
+        # Використовуємо функцію пошуку з параметрами сортування
+        webadmin_list = get_webadmins_by_search(search_query, sort_by, sort_type)
+    else:
+        # Отримуємо всі дані з параметрами сортування
+        webadmin_list = get_all_webadmins(sort_by, sort_type)
         
-    return "<h1>Вітаємо на сторінці Адміністратора!</h1>" # Замініть на render_template('admin_page.html')
+    return render_template(
+        'admin-page.html', 
+        title='Admin Panel - WebAdmins',
+        webadmin_list=webadmin_list,
+        user_rank=session.get('rank')
+    )
+
+# --- НОВИЙ МАРШРУТ: ОНОВЛЕННЯ ВЕБ-АДМІНА ---
+@app.route('/update_webadmin', methods=['POST'])
+# @login_required 
+def update_webadmin():
+    # Перевірка на SuperAdmin
+    if session.get('rank') != 'SuperAdmin':
+        return redirect(url_for('admin_page'))
+    
+    webadmin_id = request.form.get('webadmin_id')
+    name = request.form.get('webadmin_name')
+    rank = request.form.get('webadmin_rank')
+
+    if update_webadmin_data(webadmin_id, name, rank):
+        print(f"✅ Веб-адмін ID {webadmin_id} успішно оновлено.")
+    else:
+        print(f"❌ Помилка оновлення веб-адміна ID {webadmin_id}.")
+        
+    return redirect(url_for('admin_page'))
+
+# --- НОВИЙ МАРШРУТ: ВИДАЛЕННЯ ВЕБ-АДМІНА ---
+@app.route('/delete_webadmin', methods=['POST'])
+# @login_required
+def delete_webadmin():
+    # Перевірка на SuperAdmin
+    if session.get('rank') != 'SuperAdmin':
+        return redirect(url_for('admin_page'))
+        
+    webadmin_id = request.form.get('webadmin_id')
+    
+    if delete_webadmin_data(webadmin_id):
+        print(f"✅ Веб-адмін ID {webadmin_id} успішно видалено.")
+    else:
+        print(f"❌ Помилка видалення веб-адміна ID {webadmin_id}.")
+        
+    return redirect(url_for('admin_page'))
+
+# --- НОВИЙ МАРШРУТ: ДОДАВАННЯ ВЕБ-АДМІНА ---
+@app.route('/add_webadmin', methods=['POST'])
+# @login_required
+def add_webadmin():
+    # Перевірка на SuperAdmin
+    if session.get('rank') != 'SuperAdmin':
+        return redirect(url_for('admin_page'))
+        
+    name = request.form.get('webadmin_name')
+    rank = request.form.get('webadmin_rank')
+    password = request.form.get('webadmin_password') 
+    
+    if not name or not rank or not password:
+         print(f"❌ Помилка додавання: Всі поля є обов'язковими.")
+         # В ідеалі тут має бути сповіщення користувачеві
+         return redirect(url_for('admin_page'))
+    
+    if insert_webadmin_data(name, rank, password):
+        print(f"✅ Веб-адмін {name} успішно додано.")
+    else:
+        print(f"❌ Помилка додавання веб-адміна {name}.")
+        
+    return redirect(url_for('admin_page'))
 
 # Маршрут для виходу (із попереднього кроку)
 @app.route('/logout')
