@@ -28,17 +28,23 @@
         
         <section class="main-block">
             <script src="{{ url_for('script', filename='filterticket.js') }}"></script>
+            <script src="{{ url_for('script', filename='excel.js') }}"></script>
 
             <div class="search-bar-container">
-                <div class="search-filter-wrapper">
-                    <div class="search-input-wrapper">
-                        <form method="GET" action="{{ request.path }}">
-                        <input type="text" placeholder="Пошук..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
-                        </form>
-                    </div>
-                    <button class="filter-btn" onclick="openFilterTicketModal()">⚙️ Фільтр</button>
-                </div>
-            </div>
+    <div class="search-input-group">
+        <form method="GET" action="{{ url_for('tickets') }}" id="filterForm">
+            <input type="text" name="query" id="searchQuery" placeholder="Пошук..." value="{{ active_query }}">
+            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ active_sort_by }}">
+            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ active_sort_type }}">
+
+            <button type="submit" class="search-btn">🔍 Пошук</button>
+            <button type="button" class="filter-btn" onclick="openFilterTicketModal()">⚙️ Фільтр</button>
+            
+            <button type="button" class="export-btn" onclick="exportTicketInfoToExcel()">📊 Експорт в Excel</button>
+            
+        </form>
+    </div>
+    </div>
 
             <div id="ticketFilterModal" class="modal">
         <div class="modal-content filter-modal-content">

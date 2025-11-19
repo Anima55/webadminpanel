@@ -28,17 +28,22 @@
         <section class="main-block">
             <!--Фільтри пошуку-->
             <script src="{{ url_for('script', filename='filter.js') }}"></script>
+            <script src="{{ url_for('script', filename='excel.js') }}"></script>
 
             <div class="search-bar-container">
-                <div class="search-filter-wrapper">
-                    <div class="search-input-wrapper">
-                        <form method="GET" action="{{ request.path }}">
-                        <input type="text" placeholder="Пошук..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
-                        </form>
-                    </div>
-                    <button class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
-                </div>
-            </div>
+    <div class="search-input-group">
+        <form action="{{ url_for('home') }}" method="GET" class="search-form" id="filterForm">
+            <input type="text" id="searchQuery" name="query"
+            placeholder="Пошук за ім'ям або рангом..." 
+           value="{{ request.args.get('query', '') }}">
+            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ active_sort_by }}">
+            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ active_sort_type }}">
+            <button type="submit" class="search-button">Знайти</button>
+            <button type="button" class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
+            <button type="button" class="export-btn" onclick="exportHelperInfoToExcel()">📊 Експорт в Excel</button> 
+        </form>
+    </div>
+    </div>
 
             <div id="filterModal" class="modal">
         <div class="modal-content filter-modal-content">

@@ -602,6 +602,22 @@ body {
     transition: background-color 0.3s;
 }
 
+/* Додайте до існуючих стилів кнопок, наприклад, після .filter-btn */
+.export-btn {
+    cursor: pointer;
+    padding: 10px 15px;
+    margin-left: 5px; /* Невеликий відступ від попередньої кнопки */
+    border: none;
+    border-radius: 4px;
+    background-color: #28a745; /* Зелений колір для експорту */
+    color: white;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.export-btn:hover {
+    background-color: #218838;
+}
 .filter-option button:hover {
     background-color: #0056b3;
 }

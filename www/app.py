@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
+import io 
+import csv
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file # ДОДАТИ send_file
 import psycopg
 import os
 from functools import wraps
@@ -24,37 +26,52 @@ def get_connection():
 
 # Функцій для табліци HelperInfo
 # Функція для отримання всіх помічників (для головної сторінки)
-def get_all_helpers(sort_by=None, sort_type='ASC'): # <--- ДОДАТИ: параметри сортування
-    """Повертає всіх помічників з таблиці helperinfo, з можливістю сортування."""
+def get_all_helpers(query=None, sort_by=None, sort_type='ASC'): # ДОДАНО: query
+    """Повертає всіх помічників з таблиці helperinfo, з можливістю сортування та пошуку."""
     
-    valid_sort_fields = ['helper_id', 'admin_name', 'admin_rank', 'warnings_count']
-    order_column = sort_by if sort_by in valid_sort_fields else 'helper_id'
-    order_direction = sort_type if sort_type in ('ASC', 'DESC') else 'ASC'
-    
-    sql = f"""
-    SELECT helper_id, admin_name, admin_rank, warnings_count 
-    FROM public.helperinfo 
-    ORDER BY {order_column} {order_direction};
-    """
     conn = get_connection()
-    if conn is None: return [] 
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            column_names = [desc[0] for desc in cur.description]
-            helpers = cur.fetchall()
-            
-            data = []
-            for row in helpers:
-                data.append(dict(zip(column_names, row)))
-            return data
-
-    except Exception as e:
-        # print(f"❌ Помилка читання даних helperinfo: {e}")
+    if conn is None:
         return []
+
+    # Визначення допустимих полів сортування
+    valid_sort_fields = ['helper_id', 'admin_name', 'admin_rank', 'warnings_count']
+    
+    # Побудова SQL-запиту
+    # 1. WHERE Clause (Пошук/Фільтрація)
+    where_clause = ""
+    params = {}
+    
+    if query:
+        # Додаємо умову пошуку по імені або рангу (case-insensitive LIKE)
+        where_clause = " WHERE admin_name ILIKE %(query)s OR admin_rank ILIKE %(query)s OR warnings_count ILIKE %(query)s"
+        # %% використовується для передачі % у psycopg
+        params['query'] = f"%{query}%"
+
+    # 2. ORDER BY Clause (Сортування)
+    order_clause = ""
+    if sort_by and sort_by in valid_sort_fields:
+        # Перевіряємо, чи ASC чи DESC
+        sort_type = 'DESC' if sort_type and sort_type.upper() == 'DESC' else 'ASC'
+        
+        # Використовуємо ідентифікатор поля напряму, щоб уникнути SQL Injection
+        order_clause = f" ORDER BY {psycopg.sql.Identifier(sort_by)} {psycopg.sql.SQL(sort_type)}"
+    
+    # 3. Формування повного запиту
+    sql_template = f"SELECT helper_id, admin_name, admin_rank, warnings_count FROM helperinfo{where_clause}{order_clause}"
+    
+    results = []
+    try:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            # Використовуємо cur.execute() з параметрами для безпеки
+            cur.execute(sql_template, params)
+            results = cur.fetchall()
+    except Exception as e:
+        print(f"Помилка при отриманні даних HelperInfo: {e}")
+        # Залишаємо print для логування, як у вашому стилі
     finally:
         conn.close()
+        
+    return results
 
 def get_helpers_by_search(search_query, sort_by=None, sort_type='ASC'): # <--- ДОДАТИ: параметри сортування
     """Повертає помічників, які відповідають search_query у будь-якому текстовому полі, з сортуванням."""
@@ -173,46 +190,81 @@ def insert_helper_data(name, rank, warnings):
         if conn: conn.close()
 
 # Функцій для табліци TicketInfo
-# Функція для отримання всіх тікетів
-def get_all_tickets(sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Додано параметри сортування
-    """Повертає всі тікети з таблиці ticketinfo, з можливістю сортування."""
+# Функція для отримання всіх тікетів (для сторінки TicketInfo)
+def get_all_tickets(query=None, sort_by=None, sort_type='ASC'):
+    """Повертає всі тікети з таблиці ticketinfo, з можливістю пошуку та сортування."""
+    ticket_list = []
     
-    valid_sort_fields = ['ticket_id', 'submitter_username', 'handler_name', 'time_spent', 'resolution_rating']
-    order_column = sort_by if sort_by in valid_sort_fields else 'ticket_id'
-    order_direction = sort_type if sort_type in ('ASC', 'DESC') else 'ASC'
+    # Визначення поля для сортування за замовчуванням
+    if not sort_by:
+        sort_by = 'ticket_id' # Сортуємо за ID за замовчуванням
     
-    sql = f"""
-    SELECT 
-        t.ticket_id, 
-        t.submitter_username, 
-        h.admin_name AS handler_name, 
-        t.time_spent, 
-        t.resolution_rating
-    FROM public.ticketinfo AS t
-    LEFT JOIN public.helperinfo AS h ON t.handler_helper_id = h.helper_id
-    ORDER BY {order_column} {order_direction}; 
-    """ # <--- ЦЕЙ ЗАПИТ ТЕПЕР ВИКОРИСТОВУЄТЬСЯ
-    conn = get_connection()
-    if conn is None: return []
+    # Перевірка безпеки сортування: дозволені поля
+    allowed_sort_fields = {
+        'ticket_id': 't.ticket_id',
+        'submitter_username': 't.submitter_username',
+        'handler_name': 'h.admin_name',
+        'time_spent': 't.time_spent',
+        'resolution_rating': 't.resolution_rating'
+    }
+    
+    # Перевіряємо чи вибране поле для сортування дозволено
+    sort_column = allowed_sort_fields.get(sort_by, 't.ticket_id')
+    sort_direction = 'DESC' if sort_type.upper() == 'DESC' else 'ASC'
+    
+    # Базовий запит із приєднанням (JOIN) для отримання імені хендлера
+    base_query = """
+        SELECT 
+            t.ticket_id, 
+            t.submitter_username, 
+            t.handler_helper_id, 
+            t.time_spent, 
+            t.resolution_rating,
+            h.admin_name AS handler_name
+        FROM 
+            ticketinfo t
+        LEFT JOIN 
+            helperinfo h ON t.handler_helper_id = h.helper_id
+    """
+    
+    # Логіка для додавання фільтра (WHERE)
+    where_clauses = []
+    params = {}
+    
+    if query:
+        # Додаємо фільтр для пошуку по username та імені хендлера
+        where_clauses.append("(t.submitter_username ILIKE %(query_param)s OR h.admin_name ILIKE %(query_param)s)")
+        params['query_param'] = f"%{query}%"
 
+    full_query = base_query
+    if where_clauses:
+        full_query += " WHERE " + " AND ".join(where_clauses)
+        
+    # Додаємо сортування
+    full_query += f" ORDER BY {sort_column} {sort_direction}"
+    
+    conn = get_connection()
+    if conn is None:
+        return ticket_list
+        
     try:
         with conn.cursor() as cur:
-            # !!! ЗМІНА: ВИКОРИСТОВУЄМО ДИНАМІЧНИЙ SQL-ЗАПИТ
-            cur.execute(sql) 
+            cur.execute(full_query, params)
             
             # Отримання імен колонок
-            columns = [desc[0] for desc in cur.description]
-            tickets_data = cur.fetchall()
+            column_names = [desc[0] for desc in cur.description]
             
-            # Перетворення в список словників для зручності в Jinja2
-            return [dict(zip(columns, ticket)) for ticket in tickets_data]
-            
+            for record in cur.fetchall():
+                ticket_list.append(dict(zip(column_names, record)))
+                
     except Exception as e:
-        print(f"❌ Помилка отримання тікетів з БД: {e}")
-        return []
+        # print(f"Помилка при отриманні тікетів: {e}")
+        pass
     finally:
         if conn:
             conn.close()
+            
+    return ticket_list
 
 # Функція: Пошук тікетів за іменем заявника
 def get_tickets_by_multi_search(search_query, sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Додано параметри сортування
@@ -530,6 +582,7 @@ def home():
     """Відображає таблицю helperinfo, з підтримкою пошуку та сортування."""
     
     search_query = request.args.get('query', '')
+    query = request.args.get('query', '')
     
     # 1. Отримуємо параметри сортування з URL (тепер вони простіші)
     sort_by = request.args.get('sort_by', '')
@@ -542,7 +595,7 @@ def home():
         main_title = f"Співробітники (HelperInfo) - Пошук: '{search_query}'"
     else:
         # Передаємо сортування в функцію отримання всіх даних
-        helpers = get_all_helpers(sort_by, sort_type) 
+        helpers = get_all_helpers(query, sort_by, sort_type)
         main_title = "Співробітники (HelperInfo)"
     
     item_count = len(helpers)
@@ -585,17 +638,20 @@ def tickets():
     
     item_count = len(tickets_data) # <--- Тимчасовий фікс, якщо була помилка з item_count
     
-    return render_template('tickets.html', 
-        title="Ticket Information", 
-        table_data=tickets_data,
-        col_headers=["ID", "Заявник", "Обробник", "Час (сек)", "Рейтинг"],
-        main_content_title=main_title,
-        item_count=item_count,
-        ticket_list=tickets_data,
-        user_rank=user_rank,
-        sort_by=sort_by,
-        sort_type=sort_type
-        ) # <--- Тимчасовий фікс, якщо була помилка з item_count
+    query = request.args.get('query', '')
+
+    ticket_list = get_all_tickets(query=query, sort_by=sort_by, sort_type=sort_type)
+    
+    return render_template(
+        'tickets.html',
+        title='TicketInfo',
+        user_rank=session.get('user_rank'),
+        ticket_list=ticket_list,
+        # Передаємо поточні параметри назад до шаблону для відображення стану фільтра
+        active_query=query,
+        active_sort_by=sort_by,
+        active_sort_type=sort_type
+    )
 
 # --- МАРШРУТ 4: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
 @app.route('/update_helper', methods=['POST'])
@@ -730,6 +786,96 @@ def add_webadmin():
         print(f"❌ Помилка додавання веб-адміна {name}.")
         
     return redirect(url_for('admin_page'))
+
+# --- НОВИЙ МАРШРУТ: ЕКСПОРТ HELPERINFO В EXCEL ---
+@app.route('/export-helperinfo')
+@login_required
+def export_helperinfo():
+    query = request.args.get('query', '').strip()
+    sort_by = request.args.get('sort_by')
+    sort_type = request.args.get('sort_type', 'ASC')
+    
+    # ВИПРАВЛЕННЯ: Використовуємо ту ж логіку, що і в функції home(),
+    # щоб забезпечити, що якщо 'query' є, ми використовуємо функцію пошуку.
+    if query:
+        # 1. Якщо є пошуковий запит, використовуємо багатопольовий пошук (як на сторінці)
+        helper_list = get_helpers_by_search(query, sort_by, sort_type)
+    else:
+        # 2. Якщо запиту немає, отримуємо всі дані (або використовуємо get_all_helpers без запиту)
+        # Змінено: використовуємо get_all_helpers, але з поточними параметрами сортування
+        helper_list = get_all_helpers(query=None, sort_by=sort_by, sort_type=sort_type)
+        
+    header = ['ID', 'Ім\'я Адміна', 'Ранг', 'Попередження'] 
+    
+    output = io.StringIO()
+    # Використовуємо крапку з комою (;) та BOM для сумісності з українським Excel
+    writer = csv.writer(output, delimiter=';') 
+    
+    writer.writerow(header)
+    
+    for helper in helper_list:
+        writer.writerow([
+            helper['helper_id'],
+            helper['admin_name'],
+            helper['admin_rank'],
+            helper['warnings_count']
+        ])
+
+    output.seek(0)
+    # Додаємо BOM для коректного відображення українських символів в Excel
+    csv_bytes = (u'\ufeff' + output.getvalue()).encode('utf-8')
+    buffer = io.BytesIO(csv_bytes)
+    
+    return send_file(
+        buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='HelperInfo_Export.xlsx' 
+    )
+    
+# --- НОВИЙ МАРШРУТ: ЕКСПОРТ TICKETINFO В EXCEL ---
+@app.route('/export-ticketinfo')
+@login_required
+def export_ticketinfo():
+    query = request.args.get('query', '').strip()
+    sort_by = request.args.get('sort_by')
+    sort_type = request.args.get('sort_type', 'ASC')
+    
+    # Виклик функції з фільтрацією/сортуванням
+    # ПЕРЕВІРТЕ, ЩО get_all_tickets ПРИЙМАЄ ЦІ ПАРАМЕТРИ
+    # Припускаю, що функція get_all_tickets існує
+    ticket_list = get_all_tickets(query=query, sort_by=sort_by, sort_type=sort_type)
+
+    # Згідно зі структурою БД (wdb.sql) та tickets.html
+    header = ['ID_Тікета', 'Користувач', 'Хендлер_ID', 'Хендлер_Ім\'я', 'Витрачений_час_(хв)', 'Оцінка_вирішення'] 
+    
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';') 
+    
+    writer.writerow(header)
+    
+    for ticket in ticket_list:
+        writer.writerow([
+            ticket['ticket_id'],
+            ticket['submitter_username'],
+            ticket['handler_helper_id'],
+            # 'handler_name' є у tickets.html, але може бути відсутній у ticketinfo таблиці, 
+            # тому використовуємо .get() або припускаємо, що він приєднується через JOIN
+            ticket.get('handler_name', 'Невідомий'), 
+            ticket['time_spent'],
+            ticket['resolution_rating']
+        ])
+
+    output.seek(0)
+    csv_bytes = (u'\ufeff' + output.getvalue()).encode('utf-8')
+    buffer = io.BytesIO(csv_bytes)
+    
+    return send_file(
+        buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='TicketInfo_Export.xlsx'
+    )
 
 # Маршрут для виходу (із попереднього кроку)
 @app.route('/logout')
