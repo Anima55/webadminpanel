@@ -1,17 +1,10 @@
 import io 
 import csv
-<<<<<<< HEAD
 from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, flash
 import psycopg
 import os
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-=======
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file # ДОДАТИ send_file
-import psycopg
-import os
-from functools import wraps
->>>>>>> 42f29d4bb4cbb1425eb1b40cb401cdad12c21e8e
 
 # DB_NAME - назва бд, DB_USER - Логін DB_PASSWORD - Пароль, DB_HOST - IP хоста DB_PORT - Порт
 DB_NAME = os.environ.get('DB_NAME', 'wdb')
@@ -544,16 +537,11 @@ app.config['SECRET_KEY'] = 'a_very_secret_key_that_is_long_and_random'
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-<<<<<<< HEAD
         if 'logged_in' not in session or not session.get('logged_in'):
-=======
-        if not session.get('logged_in'):
->>>>>>> 42f29d4bb4cbb1425eb1b40cb401cdad12c21e8e
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
 
-<<<<<<< HEAD
 def admin_required(required_rank):
     """
     Декоратор, який перевіряє, чи користувач увійшов в систему 
@@ -616,41 +604,6 @@ def login():
     # Якщо rank не встановлено, встановлюємо 'Guest' для коректного відображення навігації
     user_rank = session.get('user_rank', 'Guest')
     return render_template('login.html', title=title, error=error, user_rank=user_rank)
-=======
-# --- МАРШРУТ 3: СТОРІНКА ВХОДУ (login) ---
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        # 1. Отримання даних з форми
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        # 2. Перевірка облікових даних у базі даних
-        admin_info = check_webadmin_credentials(username, password) # <--- ВИКОРИСТОВУЄМО НОВУ ФУНКЦІЮ
-        rank = get_webadmin_rank(username) # Викликаємо нову функцію
-        
-        if admin_info:
-            # Успішний вхід: 
-            session['logged_in'] = True 
-            session['username'] = admin_info['webadmin_name'] # Зберігаємо ім'я користувача
-            session['webadmin_id'] = admin_info['webadmin_id'] # Зберігаємо ID
-
-            
-            session['rank'] = rank if rank else 'user' # Зберігаємо роль, або 'user' за замовчуванням
-
-            print(f"✅ Успішний вхід для користувача: {username}")
-            return redirect(url_for('home'))
-        else:
-            # Невдалий вхід
-            error = 'Невірне ім\'я користувача або пароль.'
-            print(f"❌ Невдалий вхід для користувача: {username}")
-            # Повертаємо користувача на сторінку логіну з повідомленням про помилку
-            return render_template('login.html', error=error)
-
-    # Метод GET: Просто відображаємо сторінку логіну
-    return render_template('login.html', title="Вхід до системи")
->>>>>>> 42f29d4bb4cbb1425eb1b40cb401cdad12c21e8e
 
 # --- МАРШРУТ 1: ГОЛОВНА СТОРІНКА (helperinfo) ---
 @app.route('/')
@@ -806,7 +759,6 @@ def admin_page():
 
 # --- НОВИЙ МАРШРУТ: ОНОВЛЕННЯ ВЕБ-АДМІНА ---
 @app.route('/update_webadmin', methods=['POST'])
-<<<<<<< HEAD
 @login_required
 @admin_required('SuperAdmin')
 def update_webadmin():
@@ -830,23 +782,6 @@ def update_webadmin():
             # print(f"Помилка редагування WebAdmin: {e}")
             flash('Помилка редагування WebAdmin.', 'danger')
     
-=======
-# @login_required 
-def update_webadmin():
-    # Перевірка на SuperAdmin
-    if session.get('rank') != 'SuperAdmin':
-        return redirect(url_for('admin_page'))
-    
-    webadmin_id = request.form.get('webadmin_id')
-    name = request.form.get('webadmin_name')
-    rank = request.form.get('webadmin_rank')
-
-    if update_webadmin_data(webadmin_id, name, rank):
-        print(f"✅ Веб-адмін ID {webadmin_id} успішно оновлено.")
-    else:
-        print(f"❌ Помилка оновлення веб-адміна ID {webadmin_id}.")
-        
->>>>>>> 42f29d4bb4cbb1425eb1b40cb401cdad12c21e8e
     return redirect(url_for('admin_page'))
 
 # --- НОВИЙ МАРШРУТ: ВИДАЛЕННЯ ВЕБ-АДМІНА ---
@@ -868,7 +803,6 @@ def delete_webadmin():
 
 # --- НОВИЙ МАРШРУТ: ДОДАВАННЯ ВЕБ-АДМІНА ---
 @app.route('/add_webadmin', methods=['POST'])
-<<<<<<< HEAD
 @login_required
 @admin_required('SuperAdmin')
 def add_webadmin():
@@ -893,28 +827,6 @@ def add_webadmin():
             # print(f"Помилка додавання WebAdmin: {e}")
             flash('Помилка додавання WebAdmin.', 'danger')
     
-=======
-# @login_required
-def add_webadmin():
-    # Перевірка на SuperAdmin
-    if session.get('rank') != 'SuperAdmin':
-        return redirect(url_for('admin_page'))
-        
-    name = request.form.get('webadmin_name')
-    rank = request.form.get('webadmin_rank')
-    password = request.form.get('webadmin_password') 
-    
-    if not name or not rank or not password:
-         print(f"❌ Помилка додавання: Всі поля є обов'язковими.")
-         # В ідеалі тут має бути сповіщення користувачеві
-         return redirect(url_for('admin_page'))
-    
-    if insert_webadmin_data(name, rank, password):
-        print(f"✅ Веб-адмін {name} успішно додано.")
-    else:
-        print(f"❌ Помилка додавання веб-адміна {name}.")
-        
->>>>>>> 42f29d4bb4cbb1425eb1b40cb401cdad12c21e8e
     return redirect(url_for('admin_page'))
 
 # --- НОВИЙ МАРШРУТ: ЕКСПОРТ HELPERINFO В EXCEL ---
