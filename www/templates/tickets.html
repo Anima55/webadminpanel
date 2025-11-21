@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+    <header class="top-nav">
+        <div class="nav-left">
+            <div class="nav-icon"><a href="/" style="color:white; text-decoration:none;">🛡️ ForgeRock</a></div> 
+            
+            {% if user_rank == 'SuperAdmin' %}
+            <a href="/admin-page" class="nav-button" style="background-color: #007bff;">🛠️ Адмін-Панель</a>
+            {% endif %}
+        </div>
+
+        <nav class="nav-right">
+            <a href="{{ url_for('home') }}" class="nav-button">HelperInfo</a>
+            <a href="{{ url_for('tickets') }}" class="nav-button">TicketInfo</a>
+            <a href="{{ url_for('logout') }}" class="nav-button" style="background-color: #dc3545;">Вихід</a>
+        </nav>
+    </header>
+    
+    <main class="site-body">
+        
+        <section class="main-block">
+            <script src="{{ url_for('script', filename='filterticket.js') }}"></script>
+            <script src="{{ url_for('script', filename='excel.js') }}"></script>
+
+            <div class="search-bar-container">
+    <div class="search-input-group">
+        <form method="GET" action="{{ url_for('tickets') }}" id="filterForm">
+            <input type="text" name="query" id="searchQuery" placeholder="Пошук..." value="{{ active_query }}">
+            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ active_sort_by }}">
+            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ active_sort_type }}">
+
+            <button type="submit" class="search-btn">🔍 Пошук</button>
+            <button type="button" class="filter-btn" onclick="openFilterTicketModal()">⚙️ Фільтр</button>
+            
+            <button type="button" class="export-btn" onclick="exportTicketInfoToExcel()">📊 Експорт в Excel</button>
+            
+        </form>
+    </div>
+    </div>
+
+            <div id="ticketFilterModal" class="modal">
+        <div class="modal-content filter-modal-content">
+            <span class="close-btn" onclick="closeFilterTicketModal()">&times;</span>
+            <h2>Налаштування сортування</h2>
+            
+            <form method="GET" action="{{ request.path }}" id="filterForm">
+                
+                <input type="hidden" name="query" value="{{ request.args.get('query', '') }}">
+                
+                <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
+                <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
+
+                <h3>Виберіть критерій сортування:</h3>
+
+                {% set current_sort_by = sort_by %}
+                {% set current_sort_type = sort_type %}
+                
+                <div class="filter-option">
+                    <label>Час (сек):</label>
+                    <div class="sort-control">
+                        <button type="button" class="sort-toggle-btn" 
+                                data-sort-field="time_spent"  onclick="applyTicketSort('time_spent', 'time_spent_btn')">
+                            {% if current_sort_by == 'time_spent' %}
+                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                            {% else %}
+                                🔄 Сортувати
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-option">
+                    <label>Оцінка:</label>
+                    <div class="sort-control">
+                        <button type="button" class="sort-toggle-btn" 
+                                data-sort-field="resolution_rating"  onclick="applyTicketSort('resolution_rating', 'resolution_rating_btn')">
+                            {% if current_sort_by == 'resolution_rating' %}
+                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+                            {% else %}
+                                🔄 Сортувати
+                            {% endif %}
+                        </button>
+                    </div>
+                </div>
+                
+                </form>
+                <div class="modal-buttons" style="margin-top: 30px; justify-content: center;">
+                <button type="button" class="delete-btn" onclick="resetSortTicketFilters()">Скинути сортування</button>
+            </div>
+            
+        </div>
+    </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID Тікета</th>
+                            <th>Користувач (Submitter)</th>
+                            <th>Хендлер (Helper)</th>
+                            <th>Витрачений час (хв)</th>
+                            <th>Оцінка вирішення</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in ticket_list %}
+                        <tr>
+                            <td>{{ ticket.ticket_id }}</td>
+                            <td>{{ ticket.submitter_username }}</td>
+                            <td>{{ ticket.handler_name if ticket.handler_name else 'Не призначено' }}</td>
+                            <td>{{ ticket.time_spent }}</td>
+                            <td>
+                                {% if ticket.resolution_rating is not none %}
+                                    {{ '⭐' * ticket.resolution_rating }} ({{ ticket.resolution_rating }}/5)
+                                {% else %}
+                                    Н/Д
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not ticket_list %}
+                        <tr>
+                            <td colspan="5" style="text-align: center;">Тікети не знайдено.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+        </section>
+        
+    </main>
+
+</body>
+</html>
