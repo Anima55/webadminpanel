@@ -1,6 +1,6 @@
 import io 
 import csv
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, flash, jsonify
 import psycopg
 import os
 from functools import wraps
@@ -29,8 +29,47 @@ def get_connection():
         # print(f"Помилка підключення до бази даних: {e}")
         return None
 
+# Декоратор для перевірки авторизації
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session or not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(required_rank):
+    """
+    Декоратор, який перевіряє, чи користувач увійшов в систему 
+    і чи має він необхідний ранг (включно із SuperAdmin).
+    """
+    def wrapper(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 1. Перевіряємо, чи користувач увійшов (це вже робить login_required, але для надійності)
+            if 'logged_in' not in session or not session.get('logged_in'):
+                # Використовуємо flash для повідомлення, якщо потрібно
+                # flash('Для доступу до цієї сторінки необхідний вхід.', 'danger')
+                return redirect(url_for('login'))
+            
+            user_rank = session.get('user_rank', 'Guest')
+            
+            # 2. Перевіряємо ранг
+            # Порівняння рангів (для простоти, припускаємо, що SuperAdmin має повний доступ)
+            if user_rank != required_rank and user_rank != 'SuperAdmin':
+                # flash(f'Недостатньо прав. Потрібен ранг: {required_rank}', 'warning')
+                # Можна перенаправити на головну сторінку або сторінку 403
+                return redirect(url_for('home'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return wrapper
+
+# ==========================================================
 # Функцій для табліци HelperInfo
-# Функція для отримання всіх помічників (для головної сторінки)
+# ==========================================================
+
+# --- ФУНКЦІЯ H1: Для отримання всіх помічників (для головної сторінки) ---
 def get_all_helpers(query=None, sort_by=None, sort_type='ASC'): # ДОДАНО: query
     """Повертає всіх помічників з таблиці helperinfo, з можливістю сортування та пошуку."""
     
@@ -78,6 +117,7 @@ def get_all_helpers(query=None, sort_by=None, sort_type='ASC'): # ДОДАНО: 
         
     return results
 
+# --- ФУНКЦІЯ H2: Для фільтра Helperinfo ---
 def get_helpers_by_search(search_query, sort_by=None, sort_type='ASC'): # <--- ДОДАТИ: параметри сортування
     """Повертає помічників, які відповідають search_query у будь-якому текстовому полі, з сортуванням."""
     conn = get_connection()
@@ -118,7 +158,7 @@ def get_helpers_by_search(search_query, sort_by=None, sort_type='ASC'): # <--- �
     finally:
         if conn: conn.close()
 
-# ФУНКЦІЯ: Оновлення даних співробітника
+# --- ФУНКЦІЯ H3: Оновлення даних помічників ---
 def update_helper_data(helper_id, name, rank, warnings):
     """Оновлює дані співробітника в таблиці helperinfo."""
     sql = """
@@ -141,7 +181,7 @@ def update_helper_data(helper_id, name, rank, warnings):
     finally:
         if conn: conn.close()
 
-# ФУНКЦІЯ: Видалення співробітника
+# --- ФУНКЦІЯ H4: Видалення помічників ---
 def delete_helper_data(helper_id):
     """Видаляє співробітника з таблиці helperinfo за ID, попередньо видаливши всі пов'язані тікети."""
     conn = get_connection()
@@ -172,7 +212,7 @@ def delete_helper_data(helper_id):
     finally:
         if conn: conn.close()
 
-# ФУНКЦІЯ: Додавання нового співробітника
+# --- ФУНКЦІЯ H5: Додавання нового помічників ---
 def insert_helper_data(name, rank, warnings):
     """Додає нового співробітника в таблицю helperinfo."""
     sql = """
@@ -194,8 +234,33 @@ def insert_helper_data(name, rank, warnings):
     finally:
         if conn: conn.close()
 
+# --- ФУНКЦІЯ H6: Отримання Одиничного Запису (Helper) ---
+def get_helper_by_id(helper_id):
+    """Отримує одного помічника за helper_id."""
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    helper = None
+    try:
+        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+            cur.execute(
+                "SELECT helper_id, admin_name, admin_rank, warnings_count FROM helperinfo WHERE helper_id = %s;",
+                (helper_id,)
+            )
+            helper = cur.fetchone()
+    except psycopg.Error as e:
+        print(f"Помилка отримання помічника: {e}")
+    finally:
+        conn.close()
+    
+    return helper
+
+# ==========================================================
 # Функцій для табліци TicketInfo
-# Функція для отримання всіх тікетів (для сторінки TicketInfo)
+# ==========================================================
+
+# --- ФУНКЦІЯ T1: Для отримання всіх тікетів
 def get_all_tickets(query=None, sort_by=None, sort_type='ASC'):
     """Повертає всі тікети з таблиці ticketinfo, з можливістю пошуку та сортування."""
     ticket_list = []
@@ -271,7 +336,7 @@ def get_all_tickets(query=None, sort_by=None, sort_type='ASC'):
             
     return ticket_list
 
-# Функція: Пошук тікетів за іменем заявника
+# --- ФУНКЦІЯ T2: Пошук тікетів за іменем заявника
 def get_tickets_by_multi_search(search_query, sort_by=None, sort_type='ASC'): # <--- ЗМІНА: Додано параметри сортування
     """Повертає тікети, які відповідають search_query у кількох полях, з сортуванням."""
     conn = get_connection()
@@ -342,7 +407,7 @@ def get_tickets_by_multi_search(search_query, sort_by=None, sort_type='ASC'): # 
     finally:
         if conn: conn.close()
 
-# ФУНКЦІЯ: для перевірки облікових даних webadmin
+# --- ФУНКЦІЯ T3: Для перевірки облікових даних webadmin
 def check_webadmin_credentials(username, password):
     """
     Перевіряє облікові дані webadmin в таблиці public.webadmin.
@@ -372,7 +437,7 @@ def check_webadmin_credentials(username, password):
         if conn:
             conn.close()
 
-# Функція для отримання рангу WebAdmin
+# --- ФУНКЦІЯ T4: Для отримання рангу WebAdmin
 def get_webadmin_rank(username):
     """Повертає ранг (webadmin_rank) користувача webadmin."""
     conn = get_connection()
@@ -394,7 +459,7 @@ def get_webadmin_rank(username):
 # Функцій для табліци WebAdmin
 # ==========================================================
 
-# Функція для отримання всіх веб-адмінів
+# --- ФУНКЦІЯ W1: Для отримання всіх веб-адмінів
 def get_all_webadmins(sort_by=None, sort_type='ASC'): 
     """Повертає всіх веб-адмінів з таблиці webadmin, з можливістю сортування."""
     
@@ -428,7 +493,7 @@ def get_all_webadmins(sort_by=None, sort_type='ASC'):
     finally:
         if conn: conn.close()
 
-# Функція для пошуку веб-адмінів
+# --- ФУНКЦІЯ W2: Для пошуку веб-адмінів
 def get_webadmins_by_search(search_query, sort_by=None, sort_type='ASC'):
     """Повертає веб-адмінів, які відповідають search_query, з сортуванням."""
     conn = get_connection()
@@ -467,7 +532,7 @@ def get_webadmins_by_search(search_query, sort_by=None, sort_type='ASC'):
     finally:
         if conn: conn.close()
 
-# ФУНКЦІЯ: Оновлення даних веб-адміна (без зміни пароля)
+# --- ФУНКЦІЯ W3: Оновлення даних веб-адміна (без зміни пароля)
 def update_webadmin_data(webadmin_id, name, rank):
     """Оновлює ім'я та ранг веб-адміна в таблиці webadmin."""
     sql = """
@@ -490,7 +555,7 @@ def update_webadmin_data(webadmin_id, name, rank):
     finally:
         if conn: conn.close()
 
-# ФУНКЦІЯ: Видалення веб-адміна
+# --- ФУНКЦІЯ W4: Видалення веб-адміна
 def delete_webadmin_data(webadmin_id):
     """Видаляє веб-адміна з таблиці webadmin за ID."""
     sql = "DELETE FROM public.webadmin WHERE webadmin_id = %s;"
@@ -509,7 +574,7 @@ def delete_webadmin_data(webadmin_id):
     finally:
         if conn: conn.close()
 
-# ФУНКЦІЯ: Додавання нового веб-адміна
+# --- ФУНКЦІЯ W5: Додавання нового веб-адміна
 def insert_webadmin_data(name, rank, password):
     """Додає нового веб-адміна в таблицю webadmin."""
     # УВАГА: У реальному додатку тут слід використовувати хешування пароля!
@@ -532,7 +597,7 @@ def insert_webadmin_data(name, rank, password):
     finally:
         if conn: conn.close()
 
-# --- НОВА ФУНКЦІЯ: ЛОГУВАННЯ ДІЙ З ДАНИМИ ---
+# --- ФУНКЦІЯ W6: ЛОГУВАННЯ ДІЙ З ДАНИМИ ---
 def log_action(user_id, username, action, table_name, object_id=None):
     """
     Логує дії користувача у файл у форматі, схожому на CLF.
@@ -551,7 +616,7 @@ def log_action(user_id, username, action, table_name, object_id=None):
     except Exception as e:
         print(f"Помилка логування: {e}")
 
-# --- ФУНКЦІЯ РЕЗЕРВНОГО КОПІЮВАННЯ БАЗИ ДАНИХ ---
+# --- ФУНКЦІЯ W7: РЕЗЕРВНОГО КОПІЮВАННЯ БАЗИ ДАНИХ ---
 def backup_database():
     """
     Створює резервну копію бази даних PostgreSQL за допомогою pg_dump.
@@ -617,49 +682,16 @@ def backup_database():
                    'BACKUP_FAILED', 'database', 'Перевірте, чи коректно вказано шлях до pg_dump.')
         return False, "Помилка: Перевірте, чи коректно вказано шлях до pg_dump."
 
-
 # --- НАЛАШТУВАННЯ FLASK ---
 app = Flask(__name__)
 # Встановлюємо Secret Key для Flash-повідомлень (якщо знадобиться)
 app.config['SECRET_KEY'] = 'a_very_secret_key_that_is_long_and_random' 
 
-# Декоратор для перевірки авторизації (із попереднього кроку)
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session or not session.get('logged_in'):
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+# ==========================================================
+# --- МАРШРУТИ: Сторінки login ---
+# ==========================================================
 
-def admin_required(required_rank):
-    """
-    Декоратор, який перевіряє, чи користувач увійшов в систему 
-    і чи має він необхідний ранг (включно із SuperAdmin).
-    """
-    def wrapper(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # 1. Перевіряємо, чи користувач увійшов (це вже робить login_required, але для надійності)
-            if 'logged_in' not in session or not session.get('logged_in'):
-                # Використовуємо flash для повідомлення, якщо потрібно
-                # flash('Для доступу до цієї сторінки необхідний вхід.', 'danger')
-                return redirect(url_for('login'))
-            
-            user_rank = session.get('user_rank', 'Guest')
-            
-            # 2. Перевіряємо ранг
-            # Порівняння рангів (для простоти, припускаємо, що SuperAdmin має повний доступ)
-            if user_rank != required_rank and user_rank != 'SuperAdmin':
-                # flash(f'Недостатньо прав. Потрібен ранг: {required_rank}', 'warning')
-                # Можна перенаправити на головну сторінку або сторінку 403
-                return redirect(url_for('home'))
-            
-            return f(*args, **kwargs)
-        return decorated_function
-    return wrapper
-
-# --- МАРШРУТ 3: СТОРІНКА ВХОДУ (login) ---
+# --- МАРШРУТ 1: СТОРІНКА ВХОДУ (login) ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     title = 'Вхід'
@@ -695,46 +727,19 @@ def login():
     user_rank = session.get('user_rank', 'Guest')
     return render_template('login.html', title=title, error=error, user_rank=user_rank)
 
-# --- МАРШРУТ 1: ГОЛОВНА СТОРІНКА (helperinfo) ---
-@app.route('/')
-@login_required 
-def home():
-    """Відображає таблицю helperinfo, з підтримкою пошуку та сортування."""
-    
-    search_query = request.args.get('query', '')
-    query = request.args.get('query', '')
-    
-    # 1. Отримуємо параметри сортування з URL (тепер вони простіші)
-    sort_by = request.args.get('sort_by', '')
-    sort_type = request.args.get('sort_type', 'asc').upper() # ASC або DESC
-        
-    # 2. Вибираємо функцію для отримання даних
-    if search_query:
-        # Передаємо сортування в функцію пошуку
-        helpers = get_helpers_by_search(search_query, sort_by, sort_type) 
-        main_title = f"Співробітники (HelperInfo) - Пошук: '{search_query}'"
-    else:
-        # Передаємо сортування в функцію отримання всіх даних
-        helpers = get_all_helpers(query, sort_by, sort_type)
-        main_title = "Співробітники (HelperInfo)"
-    
-    item_count = len(helpers)
+# --- Маршрут 2: Для виходу ---
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    session.pop('username', None)
+    session.pop('webadmin_id', None)
+    return redirect(url_for('login')) 
 
-    user_rank=session.get('user_rank')
-    # Параметри sort_by та sort_type будуть автоматично доступні в шаблоні 
-    # завдяки request.args, тому їх окремо передавати не обов'язково.
-    return render_template('index.html', 
-        title="Helper Information", 
-        table_data=helpers,
-        col_headers=["ID", "Ім'я", "Ранг", "Попереджень"],
-        main_content_title=main_title,
-        sort_by=sort_by,
-        sort_type=sort_type,
-        item_count=item_count,
-        user_rank=user_rank
-        )
+# ==========================================================
+# --- МАРШРУТИ: Сторінки ticketinfo ---
+# ==========================================================
 
-# --- МАРШРУТ 2: СТОРІНКА №1 (ticketinfo) ---
+# --- МАРШРУТ 3: СТОРІНКА (ticketinfo) ---
 @app.route('/tickets')
 # @login_required 
 def tickets():
@@ -773,7 +778,94 @@ def tickets():
         active_sort_type=sort_type
     )
 
-# --- МАРШРУТ 4: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
+# --- МАРШРУТ 4: ЕКСПОРТ TICKETINFO В EXCEL ---
+@app.route('/export-ticketinfo')
+@login_required
+def export_ticketinfo():
+    query = request.args.get('query', '').strip()
+    sort_by = request.args.get('sort_by')
+    sort_type = request.args.get('sort_type', 'ASC')
+    
+    # Виклик функції з фільтрацією/сортуванням
+    # ПЕРЕВІРТЕ, ЩО get_all_tickets ПРИЙМАЄ ЦІ ПАРАМЕТРИ
+    # Припускаю, що функція get_all_tickets існує
+    ticket_list = get_all_tickets(query=query, sort_by=sort_by, sort_type=sort_type)
+
+    # Згідно зі структурою БД (wdb.sql) та tickets.html
+    header = ['ID_Тікета', 'Користувач', 'Хендлер_ID', 'Хендлер_Ім\'я', 'Витрачений_час_(хв)', 'Оцінка_вирішення'] 
+    
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';') 
+    
+    writer.writerow(header)
+    
+    for ticket in ticket_list:
+        writer.writerow([
+            ticket['ticket_id'],
+            ticket['submitter_username'],
+            ticket['handler_helper_id'],
+            # 'handler_name' є у tickets.html, але може бути відсутній у ticketinfo таблиці, 
+            # тому використовуємо .get() або припускаємо, що він приєднується через JOIN
+            ticket.get('handler_name', 'Невідомий'), 
+            ticket['time_spent'],
+            ticket['resolution_rating']
+        ])
+
+    output.seek(0)
+    csv_bytes = (u'\ufeff' + output.getvalue()).encode('utf-8')
+    buffer = io.BytesIO(csv_bytes)
+    
+    return send_file(
+        buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='TicketInfo_Export.xlsx'
+    )
+
+# ==========================================================
+# --- МАРШРУТИ: Сторінки helperinfo ---
+# ==========================================================
+
+# --- МАРШРУТ 5: ГОЛОВНА СТОРІНКА (helperinfo) ---
+@app.route('/')
+@login_required 
+def home():
+    """Відображає таблицю helperinfo, з підтримкою пошуку та сортування."""
+    
+    search_query = request.args.get('query', '')
+    query = request.args.get('query', '')
+    
+    # 1. Отримуємо параметри сортування з URL (тепер вони простіші)
+    sort_by = request.args.get('sort_by', '')
+    sort_type = request.args.get('sort_type', 'asc').upper() # ASC або DESC
+        
+    # 2. Вибираємо функцію для отримання даних
+    if search_query:
+        # Передаємо сортування в функцію пошуку
+        helpers = get_helpers_by_search(search_query, sort_by, sort_type) 
+        main_title = f"Співробітники (HelperInfo) - Пошук: '{search_query}'"
+    else:
+        # Передаємо сортування в функцію отримання всіх даних
+        helpers = get_all_helpers(query, sort_by, sort_type)
+        main_title = "Співробітники (HelperInfo)"
+    
+    item_count = len(helpers)
+
+    user_rank=session.get('user_rank')
+    # Параметри sort_by та sort_type будуть автоматично доступні в шаблоні 
+    # завдяки request.args, тому їх окремо передавати не обов'язково.
+    return render_template('index.html', 
+        title="Helper Information", 
+        table_data=helpers,
+        col_headers=["ID", "Ім'я", "Ранг", "Попереджень"],
+        main_content_title=main_title,
+        sort_by=sort_by,
+        sort_type=sort_type,
+        item_count=item_count,
+        user_rank=user_rank
+        )
+
+# --- МАРШРУТ 6: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
 @app.route('/update_helper', methods=['POST'])
 @login_required
 @admin_required(['Curator', 'Manager', 'SuperAdmin'])
@@ -809,7 +901,7 @@ def update_helper():
         
     return redirect(url_for('home'))
 
-# --- МАРШРУТ 5: ВИДАЛЕННЯ СПІВРОБІТНИКА ---
+# --- МАРШРУТ 7: ВИДАЛЕННЯ СПІВРОБІТНИКА ---
 @app.route('/delete_helper', methods=['POST'])
 @login_required
 @admin_required(['Curator', 'Manager', 'SuperAdmin'])
@@ -843,7 +935,7 @@ def delete_helper():
         
     return redirect(url_for('home'))
 
-# --- МАРШРУТ 6: ДОДАВАННЯ СПІВРОБІТНИКА ---
+# --- МАРШРУТ 8: ДОДАВАННЯ СПІВРОБІТНИКА ---
 @app.route('/add-helper', methods=['POST'])
 @login_required
 @admin_required(['SuperAdmin', 'Manager'])
@@ -879,158 +971,8 @@ def add_helper():
         conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
     
     return redirect(url_for('home'))
-             
-# --- МАРШРУТ 7: СТОРІНКА АДМІНА ---
-@app.route('/admin-page', methods=['GET'])
-@login_required # Розкоментуйте, коли реалізуєте login_required
-@admin_required(['SuperAdmin'])
-def admin_page():
-    
-    # Параметри сортування
-    sort_by = request.args.get('sort_by')
-    sort_type = request.args.get('sort_type', 'asc')
-    
-    # Пошук
-    search_query = request.args.get('query')
-    
-    if search_query:
-        # Використовуємо функцію пошуку з параметрами сортування
-        webadmin_list = get_webadmins_by_search(search_query, sort_by, sort_type)
-    else:
-        # Отримуємо всі дані з параметрами сортування
-        webadmin_list = get_all_webadmins(sort_by, sort_type)
-        
-    return render_template(
-        'admin-page.html', 
-        title='Admin Panel - WebAdmins',
-        webadmin_list=webadmin_list,
-        user_rank=session.get('rank')
-    )
 
-# --- НОВИЙ МАРШРУТ: ОНОВЛЕННЯ ВЕБ-АДМІНА ---
-@app.route('/update_webadmin', methods=['POST'])
-@login_required
-@admin_required('SuperAdmin')
-def update_webadmin():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
-    if not conn:
-        flash('Помилка підключення до бази даних.', 'error')
-        return redirect(url_for('admin_page'))
-        
-    webadmin_id = request.form.get('webadmin_id')
-    username = request.form.get('username')
-    webadmin_rank = request.form.get('webadmin_rank')
-    password = request.form.get('password')
-    
-    try:
-        with conn.cursor() as cur:
-            if password:
-                new_hashed_password = generate_password_hash(password)
-                cur.execute(
-                    "UPDATE webadmin SET username = %s, hashed_password = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
-                    (username, new_hashed_password, webadmin_rank, webadmin_id)
-                )
-            else:
-                cur.execute(
-                    "UPDATE webadmin SET username = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
-                    (username, webadmin_rank, webadmin_id)
-                )
-            
-            conn.commit()
-            flash(f"Дані WebAdmin '{username}' успішно оновлено!", 'success')
-            
-            # --- ВИКЛИК ЛОГУВАННЯ: UPDATE ---
-            log_action(session.get('webadmin_id'), session.get('username'), 
-                       'UPDATE', 'webadmin', webadmin_id)
-            
-    except psycopg.Error as e:
-        conn.rollback()
-        flash(f'Помилка оновлення даних WebAdmin: {e}', 'error')
-    finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
-        
-    return redirect(url_for('admin_page'))
-
-# --- НОВИЙ МАРШРУТ: ВИДАЛЕННЯ ВЕБ-АДМІНА ---
-@app.route('/delete-webadmin', methods=['POST'])
-@login_required
-@admin_required(['SuperAdmin'])
-def delete_webadmin():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
-    if not conn:
-        flash('Помилка підключення до бази даних.', 'error')
-        return redirect(url_for('admin_page'))
-        
-    webadmin_id = request.form.get('webadmin_id')
-    
-    # Запобігання видаленню власного облікового запису
-    if str(webadmin_id) == str(session.get('webadmin_id')):
-        flash('Ви не можете видалити власний обліковий запис!', 'error')
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
-        return redirect(url_for('admin_page'))
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM webadmin WHERE webadmin_id = %s;", (webadmin_id,))
-            success = cur.rowcount > 0
-            conn.commit()
-            
-            if success:
-                flash('WebAdmin успішно видалено!', 'success')
-                # --- ВИКЛИК ЛОГУВАННЯ: DELETE ---
-                log_action(session.get('webadmin_id'), session.get('username'), 
-                           'DELETE', 'webadmin', webadmin_id)
-            else:
-                flash('WebAdmin не знайдено.', 'error')
-            
-    except psycopg.Error as e:
-        conn.rollback()
-        flash(f'Помилка видалення WebAdmin: {e}', 'error')
-    finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
-        
-    return redirect(url_for('admin_page'))
-
-# --- НОВИЙ МАРШРУТ: ДОДАВАННЯ ВЕБ-АДМІНА ---
-@app.route('/add-webadmin', methods=['POST'])
-@login_required
-@admin_required(['SuperAdmin'])
-def add_webadmin():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
-    if not conn:
-        flash('Помилка підключення до бази даних.', 'error')
-        return redirect(url_for('admin_page'))
-
-    username = request.form.get('username')
-    password = request.form.get('password')
-    webadmin_rank = request.form.get('webadmin_rank')
-    
-    hashed_password = generate_password_hash(password)
-    new_webadmin_id = None
-    
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO webadmin (username, hashed_password, webadmin_rank) VALUES (%s, %s, %s) RETURNING webadmin_id;",
-                (username, hashed_password, webadmin_rank)
-            )
-            new_webadmin_id = cur.fetchone()[0]
-            conn.commit()
-            flash(f"WebAdmin '{username}' успішно додано!", 'success')
-            
-            # --- ВИКЛИК ЛОГУВАННЯ: CREATE ---
-            log_action(session.get('webadmin_id'), session.get('username'), 
-                       'CREATE', 'webadmin', new_webadmin_id)
-            
-    except psycopg.Error as e:
-        conn.rollback()
-        flash(f'Помилка додавання WebAdmin: {e}', 'error')
-    finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
-        
-    return redirect(url_for('admin_page'))
-
-# --- НОВИЙ МАРШРУТ: ЕКСПОРТ HELPERINFO В EXCEL ---
+# --- МАРШРУТ 9: ЕКСПОРТ HELPERINFO В EXCEL ---
 @app.route('/export-helperinfo')
 @login_required
 def export_helperinfo():
@@ -1075,52 +1017,177 @@ def export_helperinfo():
         as_attachment=True,
         download_name='HelperInfo_Export.xlsx' 
     )
+
+# ==========================================================
+# --- МАРШРУТИ: Сторінки адміна ---
+# ==========================================================
+# --- МАРШРУТ 10: СТОРІНКА АДМІНА ---
+@app.route('/admin-page', methods=['GET'])
+@login_required # Розкоментуйте, коли реалізуєте login_required
+@admin_required(['SuperAdmin'])
+def admin_page():
     
-# --- НОВИЙ МАРШРУТ: ЕКСПОРТ TICKETINFO В EXCEL ---
-@app.route('/export-ticketinfo')
-@login_required
-def export_ticketinfo():
-    query = request.args.get('query', '').strip()
+    # Параметри сортування
     sort_by = request.args.get('sort_by')
-    sort_type = request.args.get('sort_type', 'ASC')
+    sort_type = request.args.get('sort_type', 'asc')
     
-    # Виклик функції з фільтрацією/сортуванням
-    # ПЕРЕВІРТЕ, ЩО get_all_tickets ПРИЙМАЄ ЦІ ПАРАМЕТРИ
-    # Припускаю, що функція get_all_tickets існує
-    ticket_list = get_all_tickets(query=query, sort_by=sort_by, sort_type=sort_type)
-
-    # Згідно зі структурою БД (wdb.sql) та tickets.html
-    header = ['ID_Тікета', 'Користувач', 'Хендлер_ID', 'Хендлер_Ім\'я', 'Витрачений_час_(хв)', 'Оцінка_вирішення'] 
+    # Пошук
+    search_query = request.args.get('query')
     
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter=';') 
-    
-    writer.writerow(header)
-    
-    for ticket in ticket_list:
-        writer.writerow([
-            ticket['ticket_id'],
-            ticket['submitter_username'],
-            ticket['handler_helper_id'],
-            # 'handler_name' є у tickets.html, але може бути відсутній у ticketinfo таблиці, 
-            # тому використовуємо .get() або припускаємо, що він приєднується через JOIN
-            ticket.get('handler_name', 'Невідомий'), 
-            ticket['time_spent'],
-            ticket['resolution_rating']
-        ])
-
-    output.seek(0)
-    csv_bytes = (u'\ufeff' + output.getvalue()).encode('utf-8')
-    buffer = io.BytesIO(csv_bytes)
-    
-    return send_file(
-        buffer,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name='TicketInfo_Export.xlsx'
+    if search_query:
+        # Використовуємо функцію пошуку з параметрами сортування
+        webadmin_list = get_webadmins_by_search(search_query, sort_by, sort_type)
+    else:
+        # Отримуємо всі дані з параметрами сортування
+        webadmin_list = get_all_webadmins(sort_by, sort_type)
+        
+    return render_template(
+        'admin-page.html', 
+        title='Admin Panel - WebAdmins',
+        webadmin_list=webadmin_list,
+        user_rank=session.get('rank')
     )
 
-# --- НОВИЙ МАРШРУТ: СТОРІНКА ЛОГІВ ---
+# --- МАРШРУТ 11: ОНОВЛЕННЯ ВЕБ-АДМІНА ---
+@app.route('/update_webadmin', methods=['POST'])
+@login_required
+@admin_required('SuperAdmin')
+def update_webadmin():
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('admin_page'))
+        
+    webadmin_id = request.form.get('webadmin_id')
+    username = request.form.get('username')
+    webadmin_rank = request.form.get('webadmin_rank')
+    password = request.form.get('password')
+    
+    try:
+        with conn.cursor() as cur:
+            if password:
+                new_hashed_password = generate_password_hash(password)
+                cur.execute(
+                    "UPDATE webadmin SET username = %s, hashed_password = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
+                    (username, new_hashed_password, webadmin_rank, webadmin_id)
+                )
+            else:
+                cur.execute(
+                    "UPDATE webadmin SET username = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
+                    (username, webadmin_rank, webadmin_id)
+                )
+            
+            conn.commit()
+            flash(f"Дані WebAdmin '{username}' успішно оновлено!", 'success')
+            
+            # --- ВИКЛИК ЛОГУВАННЯ: UPDATE ---
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'UPDATE', 'webadmin', webadmin_id)
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка оновлення даних WebAdmin: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        
+    return redirect(url_for('admin_page'))
+
+# --- МАРШРУТ 13: ВИДАЛЕННЯ ВЕБ-АДМІНА ---
+@app.route('/delete-webadmin', methods=['POST'])
+@login_required
+@admin_required(['SuperAdmin'])
+def delete_webadmin():
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('admin_page'))
+        
+    webadmin_id = request.form.get('webadmin_id')
+    
+    # Запобігання видаленню власного облікового запису
+    if str(webadmin_id) == str(session.get('webadmin_id')):
+        flash('Ви не можете видалити власний обліковий запис!', 'error')
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        return redirect(url_for('admin_page'))
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM webadmin WHERE webadmin_id = %s;", (webadmin_id,))
+            success = cur.rowcount > 0
+            conn.commit()
+            
+            if success:
+                flash('WebAdmin успішно видалено!', 'success')
+                # --- ВИКЛИК ЛОГУВАННЯ: DELETE ---
+                log_action(session.get('webadmin_id'), session.get('username'), 
+                           'DELETE', 'webadmin', webadmin_id)
+            else:
+                flash('WebAdmin не знайдено.', 'error')
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка видалення WebAdmin: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        
+    return redirect(url_for('admin_page'))
+
+# --- МАРШРУТ 14: ДОДАВАННЯ ВЕБ-АДМІНА ---
+@app.route('/add-webadmin', methods=['POST'])
+@login_required
+@admin_required(['SuperAdmin'])
+def add_webadmin():
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('admin_page'))
+
+    username = request.form.get('username')
+    password = request.form.get('password')
+    webadmin_rank = request.form.get('webadmin_rank')
+    
+    hashed_password = generate_password_hash(password)
+    new_webadmin_id = None
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO webadmin (username, hashed_password, webadmin_rank) VALUES (%s, %s, %s) RETURNING webadmin_id;",
+                (username, hashed_password, webadmin_rank)
+            )
+            new_webadmin_id = cur.fetchone()[0]
+            conn.commit()
+            flash(f"WebAdmin '{username}' успішно додано!", 'success')
+            
+            # --- ВИКЛИК ЛОГУВАННЯ: CREATE ---
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'CREATE', 'webadmin', new_webadmin_id)
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка додавання WebAdmin: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        
+    return redirect(url_for('admin_page'))
+
+# --- МАРШРУТ 15: ЗАПУСК РЕЗЕРВНОГО КОПІЮВАННЯ ---
+@app.route('/backup', methods=['POST'])
+@login_required
+@admin_required(['SuperAdmin'])
+def backup_route():
+    success, message = backup_database()
+    
+    if success:
+        flash(message, 'success')
+    else:
+        # Виводимо перші 200 символів помилки, щоб не забивати Flash
+        flash(f"Помилка резервного копіювання: {message[:200]}", 'error') 
+
+    # Перенаправляємо назад на сторінку адміністратора або логів
+    return redirect(url_for('admin_page'))
+
+# --- МАРШРУТ 16: СТОРІНКА ЛОГІВ ---
 @app.route('/logs')
 @login_required
 @admin_required(['SuperAdmin'])
@@ -1149,35 +1216,77 @@ def logs_page():
         user_rank=session.get('user_rank')
     )
 
-# Маршрут для виходу (із попереднього кроку)
-@app.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    session.pop('username', None)
-    session.pop('webadmin_id', None)
-    return redirect(url_for('login')) 
-
-# --- НОВИЙ МАРШРУТ: для подачі файлів з папки 'script' ---
+# ==========================================================
+# --- МАРШРУТ 17: для подачі файлів з папки 'script' ---
+# ==========================================================
 @app.route('/script/<path:filename>')
 def script(filename):
     """Подає статичні файли з папки 'script'."""
     return send_from_directory('script', filename)
 
-# --- НОВИЙ МАРШРУТ: ЗАПУСК РЕЗЕРВНОГО КОПІЮВАННЯ ---
-@app.route('/backup', methods=['POST'])
-@login_required
-@admin_required(['SuperAdmin'])
-def backup_route():
-    success, message = backup_database()
-    
-    if success:
-        flash(message, 'success')
-    else:
-        # Виводимо перші 200 символів помилки, щоб не забивати Flash
-        flash(f"Помилка резервного копіювання: {message[:200]}", 'error') 
+# ==========================================================
+# API ENDPOINT: ОТРИМАННЯ ДЕТАЛЕЙ ОДНОГО ПОМІЧНИКА
+# ==========================================================
 
-    # Перенаправляємо назад на сторінку адміністратора або логів
-    return redirect(url_for('admin_page'))
+# --- API ENDPOINT 1: ОТРИМАННЯ ВСІХ ПОМІЧНИКІВ (HelperInfo) ---
+@app.route('/api/v1/helpers', methods=['GET'])
+@login_required
+def api_get_helpers():
+    # Використовуємо існуючу функцію для отримання всіх помічників
+    # Можна додати обробку параметрів 'query', 'sort_by' з request.args, як у home(),
+    # але для простоти API v1 повернемо всі дані без фільтрації.
+    helper_list = get_all_helpers() 
+    
+    # Конвертуємо список словників у JSON відповідь
+    if helper_list:
+        return jsonify({
+            'status': 'success',
+            'count': len(helper_list),
+            'data': helper_list
+        }), 200
+    else:
+        return jsonify({
+            'status': 'error',
+            'message': 'Дані HelperInfo не знайдено'
+        }), 404
+
+# --- API ENDPOINT 2: ОТРИМАННЯ ВСІХ ТІКЕТІВ (TicketInfo) ---
+@app.route('/api/v1/tickets', methods=['GET'])
+@login_required
+def api_get_tickets():
+    # Використовуємо існуючу функцію для отримання всіх тікетів
+    ticket_list = get_all_tickets()
+
+    # Конвертуємо список словників у JSON відповідь
+    if ticket_list:
+        return jsonify({
+            'status': 'success',
+            'count': len(ticket_list),
+            'data': ticket_list
+        }), 200
+    else:
+        return jsonify({
+            'status': 'error',
+            'message': 'Дані TicketInfo не знайдено'
+        }), 404
+
+# --- API ENDPOINT 3: ОТРИМАННЯ ДЕТАЛЕЙ ОДНОГО ПОМІЧНИКА ---
+@app.route('/api/v1/helpers/<int:helper_id>', methods=['GET'])
+@login_required
+def api_get_helper_details(helper_id):
+    helper = get_helper_by_id(helper_id)
+    
+    if helper:
+        return jsonify({
+            'status': 'success',
+            'data': helper
+        }), 200
+    else:
+        return jsonify({
+            'status': 'error',
+            'message': f'Помічника з ID {helper_id} не знайдено'
+        }), 404
+
 
 if __name__ == '__main__':
     app.run(debug=True)

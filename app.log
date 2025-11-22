@@ -4,3 +4,5 @@
 ? 2 Anima Zhuravlev [22/Nov/2025:18:38:30 +0200] "BACKUP_FAILED database ID:Утиліта pg_dump не знайдена. Переконайтеся, що PostgreSQL bin dir додано до PATH."
 ? 2 Anima Zhuravlev [22/Nov/2025:18:41:25 +0200] "BACKUP_FAILED database ID:Утиліта pg_dump не знайдена. Переконайтеся, що PostgreSQL bin dir додано до PATH."
 ? 2 Anima Zhuravlev [22/Nov/2025:18:43:06 +0200] "BACKUP database ID:backups\wdb_backup_20251122_184305.sql"
+? 2 Anima Zhuravlev [22/Nov/2025:19:43:28 +0200] "CREATE helperinfo ID:14"
+? 2 Anima Zhuravlev [22/Nov/2025:19:44:34 +0200] "DELETE helperinfo ID:14"
