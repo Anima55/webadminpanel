@@ -14,6 +14,11 @@
             {% if user_rank == 'SuperAdmin' %}
             <a href="{{ url_for('admin_page') }}" class="nav-button" style="background-color: #007bff; margin-left: 10px;">🛠️ Адмін-Панель</a>
             {% endif %}
+            <form method="POST" action="{{ url_for('backup_route') }}" style="display:inline;">
+        <button type="submit" class="backup-btn" 
+                onclick="return confirm('Ви впевнені, що хочете створити повну резервну копію бази даних? Це може зайняти деякий час.');">
+            💾 Резервна копія БД
+        </button>
         </div>
 
         <nav class="nav-right">

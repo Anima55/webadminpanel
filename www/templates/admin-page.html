@@ -15,13 +15,18 @@
             <a href="/admin-page" class="nav-button" style="background-color: #007bff; margin-left: 10px;">🛠️ Адмін-Панель</a>
             {% endif %}
             <a href="/logs" class="logs-btn">📑 Журнал Дій</a>
+            <form method="POST" action="{{ url_for('backup_route') }}" style="display:inline;">
+        <button type="submit" class="backup-btn" 
+                onclick="return confirm('Ви впевнені, що хочете створити повну резервну копію бази даних? Це може зайняти деякий час.');">
+            💾 Резервна копія БД
+        </button>
+    </form>
         </div>
 
         <nav class="nav-right">
             <a href="{{ url_for('home') }}" class="nav-button">HelperInfo</a>
             <a href="{{ url_for('tickets') }}" class="nav-button">TicketInfo</a>
-            <a href="{{ url_for('logout') }}" class="nav-button" style="background-color: #dc3545;">Вихід</a>
-            
+            <a href="{{ url_for('logout') }}" class="nav-button" style="background-color: #dc3545;">Вихід</a>        
         </nav>
     </header>
     <main class="site-body">

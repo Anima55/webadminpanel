@@ -668,3 +668,22 @@ body {
     border-radius: 3px;
     padding: 5px;
 }
+
+/* Стилі для кнопки резервного копіювання */
+.backup-btn {
+    cursor: pointer;
+    padding: 10px 15px;
+    margin-left: 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #17a2b8; /* Інформаційний синьо-зелений колір */
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.backup-btn:hover {
+    background-color: #138496;
+}

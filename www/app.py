@@ -5,6 +5,7 @@ import psycopg
 import os
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+import subprocess
 from datetime import datetime
 
 # DB_NAME - назва бд, DB_USER - Логін DB_PASSWORD - Пароль, DB_HOST - IP хоста DB_PORT - Порт
@@ -13,6 +14,8 @@ DB_USER = os.environ.get('DB_USER', 'webadmin')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', 'admin')
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = os.environ.get('DB_PORT', '5432')
+
+PG_DUMP_PATH = os.environ.get('PG_DUMP_PATH', 'I:/code/postgresql/bin/pg_dump.exe')
 
 CONN_STRING = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
@@ -547,6 +550,72 @@ def log_action(user_id, username, action, table_name, object_id=None):
             f.write(log_entry)
     except Exception as e:
         print(f"Помилка логування: {e}")
+
+# --- ФУНКЦІЯ РЕЗЕРВНОГО КОПІЮВАННЯ БАЗИ ДАНИХ ---
+def backup_database():
+    """
+    Створює резервну копію бази даних PostgreSQL за допомогою pg_dump.
+    """
+    # Шлях, де будуть зберігатися бекапи (створюємо підпапку 'backups')
+    backup_dir = 'backups'
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    # Формат імені файлу: wdb_backup_20251122_183000.sql
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = os.path.join(backup_dir, f"{DB_NAME}_backup_{timestamp}.sql")
+
+    if not os.path.exists(PG_DUMP_PATH):
+        error_msg = f"Файл pg_dump не знайдено за шляхом: {PG_DUMP_PATH}. Перевірте константу PG_DUMP_PATH."
+        log_action(session.get('webadmin_id'), session.get('username'), 
+                   'BACKUP_FAILED', 'database', error_msg)
+        return False, error_msg
+    
+    # Будуємо команду pg_dump
+    # Ми використовуємо змінні середовища для передачі облікових даних pg_dump
+    command = [
+        PG_DUMP_PATH,
+        '-h', DB_HOST,
+        '-p', DB_PORT,
+        '-U', DB_USER,
+        '-d', DB_NAME,
+        '-f', backup_file,
+        '-F', 'p' # Вивід у plain text SQL-файл
+    ]
+    
+    # Визначаємо змінні середовища для процесу (включаючи пароль)
+    env_vars = os.environ.copy()
+    env_vars['PGPASSWORD'] = DB_PASSWORD # Пароль передається через PGPASSWORD
+    
+    try:
+        # Запускаємо команду
+        process = subprocess.run(command, env=env_vars, check=True, capture_output=True, text=True)
+        
+        # Перевірка результату
+        if process.returncode == 0:
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'BACKUP', 'database', backup_file)
+            return True, f"Успішно створено бекап: {backup_file}"
+        else:
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'BACKUP_FAILED', 'database', f"Помилка: {process.stderr}")
+            return False, f"Помилка pg_dump: {process.stderr}"
+
+    except FileNotFoundError:
+        log_action(session.get('webadmin_id'), session.get('username'), 
+                   'BACKUP_FAILED', 'database', 'Утиліта pg_dump не знайдена. Переконайтеся, що PostgreSQL bin dir додано до PATH.')
+        return False, "Помилка: Утиліта pg_dump не знайдена (перевірте PATH)."
+    except subprocess.CalledProcessError as e:
+        log_action(session.get('webadmin_id'), session.get('username'), 
+                   'BACKUP_FAILED', 'database', f"Помилка: {e.stderr}")
+        return False, f"Помилка виконання команди: {e.stderr}"
+    except Exception as e:
+        log_action(session.get('webadmin_id'), session.get('username'), 
+                   'BACKUP_FAILED', 'database', f"Невідома помилка: {e}")
+        return False, f"Невідома помилка: {e}"
+    except FileNotFoundError:
+        log_action(session.get('webadmin_id'), session.get('username'), 
+                   'BACKUP_FAILED', 'database', 'Перевірте, чи коректно вказано шлях до pg_dump.')
+        return False, "Помилка: Перевірте, чи коректно вказано шлях до pg_dump."
 
 
 # --- НАЛАШТУВАННЯ FLASK ---
@@ -1094,6 +1163,21 @@ def script(filename):
     """Подає статичні файли з папки 'script'."""
     return send_from_directory('script', filename)
 
+# --- НОВИЙ МАРШРУТ: ЗАПУСК РЕЗЕРВНОГО КОПІЮВАННЯ ---
+@app.route('/backup', methods=['POST'])
+@login_required
+@admin_required(['SuperAdmin'])
+def backup_route():
+    success, message = backup_database()
+    
+    if success:
+        flash(message, 'success')
+    else:
+        # Виводимо перші 200 символів помилки, щоб не забивати Flash
+        flash(f"Помилка резервного копіювання: {message[:200]}", 'error') 
+
+    # Перенаправляємо назад на сторінку адміністратора або логів
+    return redirect(url_for('admin_page'))
 
 if __name__ == '__main__':
     app.run(debug=True)
