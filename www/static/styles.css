@@ -1,3 +1,6 @@
+/* ==========================================================
+// СТИЛІ ДЛЯ BASE
+// ========================================================== */
 /* Базові стилі та скидання */
 body {
     margin: 0;
@@ -34,7 +37,6 @@ body {
     font-size: 24px;
     /* Забезпечуємо квадратну форму або просто вигляд іконки */
 }
-
 
 /* Права частина навігації (Кнопки) */
 .nav-right {
@@ -75,6 +77,539 @@ body {
     overflow: hidden; /* Щоб внутрішні елементи не виходили за межі */
 }
 
+/* Стилі для Таблиці */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: rgba(255, 255, 255, 0.1); /* Напівпрозорий фон таблиці */
+}
+
+.data-table th, .data-table td {
+    padding: 12px 15px;
+    border: 1px solid #5A4EAD; /* Світліший колір для розділювачів */
+    text-align: left;
+    color: white;
+}
+
+.data-table th {
+    background-color: #6A5ACD; /* Колір заголовків */
+    font-weight: bold;
+}
+
+.data-table tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.1); /* Чергування кольорів рядків */
+}
+
+/* Верхній чорний блок для Пошуку */
+.search-bar-container {
+    background-color: #000;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.search-input-wrapper {
+    background-color: white;
+    width: 100%;
+    max-width: 600px; /* Обмеження ширини білого поля, як на прикладі */
+    border-radius: 4px;
+    padding: 5px; /* Простір навколо білого прямокутника-поля */
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    box-sizing: border-box;
+    font-size: 16px;
+    border-radius: 4px;
+    outline: none;
+    color: #333; /* Темний текст */
+}
+
+/* --- НОВІ СТИЛІ ДЛЯ ПОШУКУ ТА ФІЛЬТРА --- */
+.search-filter-wrapper {
+    display: flex;
+    gap: 10px; /* Проміжок між полем пошуку та кнопками */
+    width: 100%;
+    max-width: 1200px; /* Обмеження ширини контейнера, як і main-block */
+    align-items: center;
+}
+
+.search-input-wrapper {
+    flex-grow: 1; /* Поле пошуку займає весь доступний простір */
+    max-width: none;
+    background-color: white; /* Фон для поля, як в admin-page.html */
+    border-radius: 4px;
+    padding: 5px; /* Простір навколо білого прямокутника-поля */
+}
+
+.filter-btn {
+    background-color: #f4f4f4;
+    color: #333;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+    white-space: nowrap; /* Щоб не переносився текст */
+}
+
+.filter-btn:hover {
+    background-color: #ddd;
+}
+
+/* Стилі для кнопок сортування */
+.filter-option button {
+    cursor: pointer;
+    padding: 8px 15px;
+    margin-left: 5px;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff; /* Основний синій колір */
+    color: white;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.filter-option button:hover {
+    background-color: #0056b3;
+}
+
+/* Контейнер для кнопки скидання */
+.reset-btn-container {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.export-btn {
+    cursor: pointer;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #28a745; /* Зелений колір для експорту */
+    color: white;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    white-space: nowrap; /* Щоб не переносився текст */
+}
+
+.export-btn:hover {
+    background-color: #218838;
+}
+
+/* --- Адаптивність (Медіа-запити) --- */
+@media (max-width: 768px) {
+    .top-nav {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .nav-left {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .text-input {
+        flex-grow: 1;
+        max-width: none;
+    }
+
+    .nav-right {
+        width: 100%;
+        justify-content: space-around;
+        gap: 5px;
+    }
+
+    .nav-button {
+        flex-grow: 1;
+        text-align: center;
+        padding: 8px 5px;
+    }
+    
+    .site-body {
+        padding: 10px;
+    }
+
+    .data-table th, .data-table td {
+        padding: 8px 10px;
+        font-size: 0.9em;
+    }
+
+    .table-header-info {
+        /* Перемикаємо на вертикальне відображення, якщо екран занадто вузький */
+        flex-direction: column; 
+        align-items: flex-start;
+        gap: 5px; /* Невеликий проміжок між заголовком та кількістю */
+        margin-bottom: 10px;
+    }
+}
+
+/* ==========================================================
+// СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА ФІЛЬТРА 
+// ========================================================== */
+.filter-modal-overlay {
+    /* Накриває весь екран напівпрозорим темним фоном */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.filter-modal-content {
+    /* !!! ЗМІНА: Темний фіолетовий фон для вмісту модального вікна !!! */
+    background-color: #2c284d; 
+    color: #f0f0f0; 
+    padding: 25px;
+    border-radius: 8px;
+    width: 450px; 
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    border: 1px solid #5A4EAD; /* Світліша межа, як у таблиці */
+}
+
+/* Заголовки */
+.filter-modal-content h2, .filter-modal-content h3 {
+    color: #f0f0f0; 
+    margin-top: 0; 
+    margin-bottom: 20px;
+    padding-bottom: 0;
+    font-weight: normal; 
+}
+
+/* Стиль для "Виберіть критерій сортування:" */
+.filter-modal-content h3 {
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+/* Окремі рядки опцій сортування */
+.filter-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px; 
+    /* !!! ЗМІНА: Світліший фіолетовий фон для опції !!! */
+    background-color: #383060; 
+    padding: 12px 15px;
+    border-radius: 4px;
+    border: 1px solid #5A4EAD; /* Межа, як у таблиці */
+}
+
+/* Мітка для критерію сортування (Ім'я, Ранг, Попередження) */
+.filter-option label {
+    font-weight: normal; 
+    color: #f0f0f0; 
+    margin-right: 20px;
+    flex-basis: auto; 
+    flex-grow: 1;
+}
+
+/* Універсальний стиль для кнопок сортування (Сортувати, Зростання) */
+.sort-toggle-btn {
+    /* Синій колір для активних кнопок/кнопок дії */
+    background-color: #007bff; 
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex-basis: auto; 
+    font-weight: bold;
+    display: flex; 
+    align-items: center;
+    gap: 5px; 
+}
+
+.sort-toggle-btn:hover {
+    background-color: #0056b3;
+}
+
+/* Стиль для кнопки "Скинути сортування" */
+.reset-sort-btn {
+    background-color: #5a5a5a; 
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 20px;
+}
+
+.reset-sort-btn:hover {
+    background-color: #4a4a4a;
+}
+/* ==========================================================
+// СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА (Додавання/Редагування)
+// ========================================================== */
+
+/* Основний контейнер модального вікна */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 10; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.7); /* Темніший оверлей */
+    padding-top: 60px;
+}
+
+/* Вміст модального вікна */
+.modal-content {
+    /* !!! ЗМІНА: Темний фіолетовий фон для вмісту модального вікна !!! */
+    background-color: #2c284d; 
+    margin: 5% auto; 
+    padding: 20px;
+    border: 1px solid #5A4EAD; /* Світліша межа */
+    width: 80%; 
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    color: #fff; 
+}
+
+/* Стилі для полів вводу та вибору */
+.modal-content input[type="text"], 
+.modal-content input[type="number"],
+.modal-content input[type="password"],
+.modal-content select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #5A4EAD; /* Межа кольору сайту */
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: #483D8B; /* Фіолетовий фон, як у body */
+    color: #fff; /* Білий текст */
+}
+
+/* Стилі для міток */
+.modal-content label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+    color: #f0f0f0; /* Світлий текст */
+}
+
+.modal-buttons {
+    /* Змінюємо порядок: [Save/Cancel] <-----> [Delete] */
+    display: flex;
+    justify-content: space-between; /* Розтягує елементи на весь простір */
+    align-items: center;
+    margin-top: 20px;
+}
+
+.modal-buttons-left {
+    /* Контейнер для кнопок "Зберегти зміни" та "Скасувати" */
+    display: flex;
+    gap: 10px; /* Проміжок між кнопками */
+}
+
+/* Додаємо фіксовану ширину для кнопок у модальному вікні, щоб вони були однаковими */
+.modal-buttons button {
+    /* Встановлюємо максимальну ширину, щоб кнопки мали однаковий розмір */
+    /* Зменшимо ширину зі 150px до 120px, щоб дати більше простору */
+    width: 120px; 
+    max-width: 100%; /* Гарантуємо, що кнопка не перевищить ширину батьківського контейнера */
+    text-align: center;
+    padding: 10px 10px; /* Трохи зменшимо padding */
+}
+
+.modal-buttons-delete-cancel {
+    /* Встановимо gap для проміжку між кнопками "Видалити" та "Скасувати" */
+    display: flex;
+    gap: 10px; /* Проміжок між кнопками */
+}
+
+/* Кнопка закриття (X) */
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+}
+.delete-btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    color: white;
+    background-color: #dc3545; /* Червоний колір */
+    transition: background-color 0.3s;
+}
+
+.delete-btn:hover {
+    background-color: #c82333; /* Темніший червоний при наведенні */
+}
+
+.modal-buttons form {
+    /* Дозволяємо формі бути inline-блоком поруч з кнопкою "Скасувати" */
+    display: flex; 
+    gap: 10px; /* Проміжок між "Видалити" і "Скасувати" */
+}
+
+/* Переконаємось, що "Зберегти зміни" залишається на лівому краю */
+.modal-buttons .save-btn {
+    /* Автоматичний правий відступ відсуває решту елементів */
+    margin-right: auto;
+}
+
+/* --- Адаптивність (Медіа-запити) --- */
+@media (max-width: 480px) {
+    .modal-buttons {
+        /* Переходимо на вертикальне розташування, коли екран занадто вузький */
+        flex-direction: column; 
+        gap: 10px; /* Проміжок між групами кнопок */
+    }
+
+    .modal-buttons-left {
+        /* На малих екранах також робимо кнопки "Зберегти" та "Скасувати" вертикальними */
+        flex-direction: column; 
+        width: 100%; /* Розтягуємо контейнер на всю ширину */
+    }
+    
+    .modal-buttons button {
+        /* Встановлюємо повну ширину для вертикально розташованих кнопок */
+        width: 100%;
+        margin: 0; /* Прибираємо зовнішні відступи */
+    }
+}
+/* ==========================================================
+// СТИЛІ ДЛЯ БД
+// ========================================================== */
+/* Стилі для кнопки резервного копіювання */
+.backup-btn {
+    cursor: pointer;
+    padding: 10px 15px;
+    margin-left: 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #17a2b8; /* Інформаційний синьо-зелений колір */
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.backup-btn:hover {
+    background-color: #138496;
+}
+/* ==========================================================
+// СТИЛІ ДЛЯ ЛОГІН
+// ========================================================== */
+.login-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background-color: #f4f4f4; /* Світлий фон форми */
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            color: #333;
+        }
+.login-container h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #483D8B;
+        }
+.login-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+.login-container input[type="text"],
+.login-container input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+.login-container button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+.login-container button:hover {
+            background-color: #0056b3;
+        }
+.error-message {
+            color: red;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+/* --- Адаптивність (Медіа-запити) --- */
+@media (max-width: 450px) {
+    .login-container {
+        margin: 50px 10px;
+        padding: 20px;
+        }
+        }
+/* ==========================================================
+// СТИЛІ ДЛЯ ЛОГОВ
+// ========================================================== */
+/* Стилі для кнопки логів */
+.logs-btn {
+    cursor: pointer;
+    padding: 10px 15px;
+    margin-left: 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #ffc107; /* Жовтий колір, наприклад */
+    color: #333;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.logs-btn:hover {
+    background-color: #e0a800;
+}
+
+/* Стилі для лог-записів у таблиці */
+.log-entry {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    white-space: pre-wrap; /* Зберігає форматування логу, але дозволяє переносити довгі рядки */
+    background-color: #2c2c2c;
+    border-radius: 3px;
+    padding: 5px;
+}
+/* --- Адаптивність (Медіа-запити) --- */
+
+/* ==========================================================
+// СТИЛІ ДЛЯ Helperinfo
+// ========================================================== */
 /* --- НОВІ СТИЛІ ДЛЯ ЗАГОЛОВКА ТА ПІДРАХУНКУ (Завжди вертикально) --- */
 .table-header-info {
     /* Використовуємо flexbox */
@@ -128,18 +663,6 @@ body {
     background-color: #218838;
 }
 
-/* Коректування для малих екранів */
-@media (max-width: 600px) {
-    .content-header {
-        flex-direction: column; /* На малих екранах розташовуємо один під одним */
-        align-items: flex-start;
-    }
-    .add-btn {
-        width: 100%;
-        margin-top: 10px;
-    }
-}
-
 /* Стиль для контейнера заголовка та кнопки "Додати" */
 .content-header {
     display: flex;
@@ -172,217 +695,6 @@ body {
     background-color: #218838;
 }
 
-/* Коректування для малих екранів */
-@media (max-width: 600px) {
-    .content-header {
-        flex-direction: column; /* На малих екранах розташовуємо один під одним */
-        align-items: flex-start;
-    }
-    .add-btn {
-        width: 100%;
-        margin-top: 10px;
-    }
-    .item-count-text {
-        margin-top: 5px; /* Більший відступ, якщо перенесено */
-        font-weight: bold;
-    }
-}
-
-/* Верхній чорний блок для Пошуку */
-.search-bar-container {
-    background-color: #000;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.search-input-wrapper {
-    background-color: white;
-    width: 100%;
-    max-width: 600px; /* Обмеження ширини білого поля, як на прикладі */
-    border-radius: 4px;
-    padding: 5px; /* Простір навколо білого прямокутника-поля */
-}
-
-.search-input {
-    width: 100%;
-    padding: 10px;
-    border: none;
-    box-sizing: border-box;
-    font-size: 16px;
-    border-radius: 4px;
-    outline: none; /* Прибираємо стандартне підсвічування при фокусі */
-}
-
-/* Тіло центрального блоку - Заглушка для Даних */
-.data-display-container {
-    padding: 20px;
-    background-color: #8A2BE2; /* Колір внутрішнього блоку (блакитний на прикладі) */
-    min-height: 400px; /* Тимчасова мінімальна висота для демонстрації */
-}
-
-.db-placeholder-text {
-    text-align: center;
-    font-size: 1.2em;
-    margin-bottom: 20px;
-    color: #eee;
-}
-
-/* Стилі для Таблиці */
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    background-color: rgba(255, 255, 255, 0.1); /* Напівпрозорий фон таблиці */
-}
-
-.data-table th, .data-table td {
-    padding: 12px 15px;
-    border: 1px solid #5A4EAD; /* Світліший колір для розділювачів */
-    text-align: left;
-    color: white;
-}
-
-.data-table th {
-    background-color: #6A5ACD; /* Колір заголовків */
-    font-weight: bold;
-}
-
-.data-table tr:nth-child(even) {
-    background-color: rgba(0, 0, 0, 0.1); /* Чергування кольорів рядків */
-}
-
-/* --- НОВІ СТИЛІ ДЛЯ ПОШУКУ ТА ФІЛЬТРА --- */
-.search-filter-wrapper {
-    display: flex;
-    gap: 10px; /* Проміжок між полем пошуку та кнопкою */
-    width: 100%;
-    max-width: 700px; /* Збільшуємо ширину контейнера, щоб вмістити кнопку */
-    align-items: center;
-}
-
-.search-input-wrapper {
-    flex-grow: 1; /* Поле пошуку займає весь доступний простір */
-    max-width: none; /* Прибираємо старе обмеження */
-}
-
-.filter-btn {
-    background-color: #f4f4f4;
-    color: #333;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s;
-}
-
-.filter-btn:hover {
-    background-color: #ddd;
-}
-
-/* --- СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА ФІЛЬТРА --- */
-.filter-modal-content h3 {
-    color: #483D8B;
-    margin-top: 20px;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #ccc;
-    padding-bottom: 5px;
-}
-
-.filter-option {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    padding: 10px 0;
-    border-bottom: 1px dotted #ccc;
-}
-
-.filter-option label {
-    font-weight: bold;
-    color: #333;
-    margin-right: 20px;
-    flex-basis: 40%;
-}
-
-.filter-option .sort-control {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-grow: 1;
-}
-
-.filter-option select {
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    flex-grow: 1;
-}
-
-.sort-toggle-btn {
-    background-color: #6c757d; /* Сірий колір */
-    color: white;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    flex-basis: 120px; /* Фіксована ширина для кнопки "Зростання/Спадання" */
-}
-
-.sort-toggle-btn:hover {
-    background-color: #5a6268;
-}
-
-/* --- Адаптивність (Медіа-запити) --- */
-@media (max-width: 768px) {
-    .top-nav {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .nav-left {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .text-input {
-        flex-grow: 1;
-        max-width: none;
-    }
-
-    .nav-right {
-        width: 100%;
-        justify-content: space-around;
-        gap: 5px;
-    }
-
-    .nav-button {
-        flex-grow: 1;
-        text-align: center;
-        padding: 8px 5px;
-    }
-    
-    .site-body {
-        padding: 10px;
-    }
-
-    .data-table th, .data-table td {
-        padding: 8px 10px;
-        font-size: 0.9em;
-    }
-
-    .table-header-info {
-        /* Перемикаємо на вертикальне відображення, якщо екран занадто вузький */
-        flex-direction: column; 
-        align-items: flex-start;
-        gap: 5px; /* Невеликий проміжок між заголовком та кількістю */
-        margin-bottom: 10px;
-    }
-}
-
 /* Стилі для кнопок дій у таблиці */
 .edit-btn, .cancel-btn, .save-btn {
     padding: 6px 10px;
@@ -401,289 +713,18 @@ body {
 .cancel-btn { background-color: #6c757d; } /* Червоний */
 .cancel-btn:hover { background-color: #5a6268; }
 
-/* --- СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА --- */
-.modal {
-    display: none; /* Приховано за замовчуванням */
-    position: fixed; 
-    z-index: 10; /* Поверх усіх інших елементів */
-    left: 0;
-    top: 0;
-    width: 100%; 
-    height: 100%; 
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.4); /* Напівпрозорий фон */
-}
-.modal-content {
-    background-color: #fefefe;
-    margin: 10% auto; /* 10% зверху та по центру */
-    padding: 20px;
-    border-radius: 8px;
-    width: 90%; 
-    max-width: 400px;
-    color: #333; /* Текст всередині вікна має бути темним */
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-}
-
-.close-btn {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-}
-.close-btn:hover, .close-btn:focus {
-    color: #000;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.modal-content label {
-    display: block;
-    margin-top: 10px;
-    font-weight: bold;
-}
-
-.modal-content input[type="text"], .modal-content input[type="number"] {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
-
-.modal-buttons {
-    /* Змінюємо порядок: [Save/Cancel] <-----> [Delete] */
-    display: flex;
-    justify-content: space-between; /* Розтягує елементи на весь простір */
-    align-items: center;
-    margin-top: 20px;
-}
-
-.modal-buttons-left {
-    /* Контейнер для кнопок "Зберегти зміни" та "Скасувати" */
-    display: flex;
-    gap: 10px; /* Проміжок між кнопками */
-}
-
-/* Додаємо фіксовану ширину для кнопок у модальному вікні, щоб вони були однаковими */
-.modal-buttons button {
-    /* Встановлюємо максимальну ширину, щоб кнопки мали однаковий розмір */
-    /* Зменшимо ширину зі 150px до 120px, щоб дати більше простору */
-    width: 120px; 
-    max-width: 100%; /* Гарантуємо, що кнопка не перевищить ширину батьківського контейнера */
-    text-align: center;
-    padding: 10px 10px; /* Трохи зменшимо padding */
-}
-
-.modal-buttons-delete-cancel {
-    /* Встановимо gap для проміжку між кнопками "Видалити" та "Скасувати" */
-    display: flex;
-    gap: 10px; /* Проміжок між кнопками */
-}
-
-@media (max-width: 480px) {
-    .modal-buttons {
-        /* Переходимо на вертикальне розташування, коли екран занадто вузький */
-        flex-direction: column; 
-        gap: 10px; /* Проміжок між групами кнопок */
+/* --- Адаптивність (Медіа-запити) --- */
+@media (max-width: 600px) {
+    .content-header {
+        flex-direction: column; /* На малих екранах розташовуємо один під одним */
+        align-items: flex-start;
     }
-
-    .modal-buttons-left {
-        /* На малих екранах також робимо кнопки "Зберегти" та "Скасувати" вертикальними */
-        flex-direction: column; 
-        width: 100%; /* Розтягуємо контейнер на всю ширину */
-    }
-    
-    .modal-buttons button {
-        /* Встановлюємо повну ширину для вертикально розташованих кнопок */
+    .add-btn {
         width: 100%;
-        margin: 0; /* Прибираємо зовнішні відступи */
+        margin-top: 10px;
     }
-}
-
-/* --- СТИЛІ ДЛЯ ЧЕРВОНОЇ КНОПКИ ВИДАЛЕННЯ --- */
-.delete-btn {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    color: white;
-    background-color: #dc3545; /* Червоний колір */
-    transition: background-color 0.3s;
-}
-
-.delete-btn:hover {
-    background-color: #c82333; /* Темніший червоний при наведенні */
-}
-
-/* Додамо контейнер для групування кнопок видалення та скасування, якщо це потрібно для кращого вирівнювання */
-/* Або можна використовувати flex-gap та `margin-right: auto` для першої кнопки */
-.modal-buttons form {
-    /* Дозволяємо формі бути inline-блоком поруч з кнопкою "Скасувати" */
-    display: flex; 
-    gap: 10px; /* Проміжок між "Видалити" і "Скасувати" */
-}
-
-/* Переконаємось, що "Зберегти зміни" залишається на лівому краю */
-.modal-buttons .save-btn {
-    /* Автоматичний правий відступ відсуває решту елементів */
-    margin-right: auto;
-}
-
-/* ==========================================================
-// СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА ФІЛЬТРАЦІЇ ТІКЕТІВ
-// ========================================================== */
-
-/* Основний контейнер модального вікна */
-.modal {
-    display: none; /* Приховано за замовчуванням */
-    position: fixed; /* Залишатися на місці */
-    z-index: 10; /* Поверх усього */
-    left: 0;
-    top: 0;
-    width: 100%; 
-    height: 100%; 
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.4); /* Чорний з прозорістю */
-    padding-top: 60px;
-}
-
-/* Вміст модального вікна */
-.modal-content {
-    background-color: #3e3e3e; /* Темний фон для вмісту */
-    margin: 5% auto; /* 5% від верху і по центру */
-    padding: 20px;
-    border: 1px solid #555;
-    width: 80%; 
-    max-width: 500px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    color: #fff; /* Білий текст */
-}
-
-/* Кнопка закриття (X) */
-.close-btn {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-}
-
-.close-btn:hover,
-.close-btn:focus {
-    color: #fff;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-/* Опція фільтрації (рядок з назвою та кнопками) */
-.filter-option {
-    margin-bottom: 10px;
-    padding: 10px;
-    border: 1px solid #555;
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #444;
-}
-
-/* Стилі для кнопок сортування */
-.filter-option button {
-    cursor: pointer;
-    padding: 8px 15px;
-    margin-left: 5px;
-    border: none;
-    border-radius: 4px;
-    background-color: #007bff; /* Основний синій колір */
-    color: white;
-    font-weight: bold;
-    transition: background-color 0.3s;
-}
-
-/* Додайте до існуючих стилів кнопок, наприклад, після .filter-btn */
-.export-btn {
-    cursor: pointer;
-    padding: 10px 15px;
-    margin-left: 5px; /* Невеликий відступ від попередньої кнопки */
-    border: none;
-    border-radius: 4px;
-    background-color: #28a745; /* Зелений колір для експорту */
-    color: white;
-    font-size: 14px;
-    transition: background-color 0.3s ease;
-}
-
-.export-btn:hover {
-    background-color: #218838;
-}
-.filter-option button:hover {
-    background-color: #0056b3;
-}
-
-/* Контейнер для кнопки скидання */
-.reset-btn-container {
-    margin-top: 20px;
-    text-align: right;
-}
-
-/* Стиль для кнопки "Скинути Сортування" */
-.reset-btn {
-    /* Наслідує стилі .nav-button, але змінюємо колір */
-    background-color: #f0ad4e !important; /* Помаранчевий */
-    font-weight: bold;
-    padding: 10px 15px;
-}
-
-.reset-btn:hover {
-    background-color: #ec971f !important; /* Темніший помаранчевий */
-}
-
-/* Стилі для кнопки логів */
-.logs-btn {
-    cursor: pointer;
-    padding: 10px 15px;
-    margin-left: 15px;
-    border: none;
-    border-radius: 4px;
-    background-color: #ffc107; /* Жовтий колір, наприклад */
-    color: #333;
-    font-size: 14px;
-    font-weight: bold;
-    text-decoration: none;
-    transition: background-color 0.3s ease;
-}
-
-.logs-btn:hover {
-    background-color: #e0a800;
-}
-
-/* Стилі для лог-записів у таблиці */
-.log-entry {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 13px;
-    white-space: pre-wrap; /* Зберігає форматування логу, але дозволяє переносити довгі рядки */
-    background-color: #2c2c2c;
-    border-radius: 3px;
-    padding: 5px;
-}
-
-/* Стилі для кнопки резервного копіювання */
-.backup-btn {
-    cursor: pointer;
-    padding: 10px 15px;
-    margin-left: 15px;
-    border: none;
-    border-radius: 4px;
-    background-color: #17a2b8; /* Інформаційний синьо-зелений колір */
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-    text-decoration: none;
-    transition: background-color 0.3s ease;
-}
-
-.backup-btn:hover {
-    background-color: #138496;
+    .item-count-text {
+        margin-top: 5px; /* Більший відступ, якщо перенесено */
+        font-weight: bold;
+    }
 }

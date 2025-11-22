@@ -26,25 +26,24 @@
     <main class="site-body">
         
         <section class="main-block">
-            <!--Фільтри пошуку-->
             <script src="{{ url_for('script', filename='filter.js') }}"></script>
             <script src="{{ url_for('script', filename='excel.js') }}"></script>
 
             <div class="search-bar-container">
-    <div class="search-input-group">
-        <form action="{{ url_for('home') }}" method="GET" class="search-form" id="filterForm">
-            <input type="text" id="searchQuery" name="query"
-            placeholder="Пошук за ім'ям або рангом..." 
-           value="{{ request.args.get('query', '') }}">
-            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ active_sort_by }}">
-            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ active_sort_type }}">
-            <button type="submit" class="search-button">Знайти</button>
-            <button type="button" class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
-            <button type="button" class="export-btn" onclick="exportHelperInfoToExcel()">📊 Експорт в Excel</button> 
-        </form>
-    </div>
-    </div>
-
+                <div class="search-filter-wrapper">
+                    <div class="search-input-wrapper">
+                        <form action="{{ url_for('home') }}" method="GET" class="search-form" id="filterForm">
+                            <input type="text" id="searchQuery" name="query"
+                            placeholder="Пошук за ім'ям або рангом..." 
+                           value="{{ request.args.get('query', '') }}" class="search-input">
+                            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ active_sort_by }}">
+                            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ active_sort_type }}">
+                            </form>
+                    </div>
+                    <button type="button" class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
+                    <button type="button" class="export-btn" onclick="exportHelperInfoToExcel()">📊 Експорт в Excel</button> 
+                </div>
+            </div>
             <div id="filterModal" class="modal">
         <div class="modal-content filter-modal-content">
             <span class="close-btn" onclick="closeFilterModal()">&times;</span>
@@ -115,10 +114,8 @@
         </div>
     </div>
     
-
-            <div class="data-display-container">
-                <!--Співробітники-->
-                <div class="data-display-container">
+            <div class="table-container">
+                <div class="main-block">
                 <div class="content-header">
                     <div>
                         <h2>{{ main_content_title }}</h2>
@@ -158,6 +155,9 @@
                             {% endif %}
                             </tr>
                         {% else %}
+                        <tr>
+                            <td colspan="{{ col_headers|length + (1 if main_content_title.startswith('Співробітники') else 0) }}" style="text-align: center;">Співробітники не знайдено.</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -223,21 +223,18 @@
                 <div class="modal-buttons">
                     <div class="modal-buttons-left">
                         <button type="submit" class="save-btn">Зберегти зміни</button>
-                        
-                </div>
-            </form>
-            
-            <div class="modal-buttons-delete-cancel">
+                    </div>
+            </form> <div class="modal-buttons-delete-cancel">
                 <form method="POST" action="{{ url_for('delete_helper') }}" id="deleteForm" style="display:inline;">
                     <input type="hidden" name="helper_id" id="modal_delete_helper_id">
-                    <button type="submit" class="delete-btn" 
-                            onclick="return confirm('Ви впевнені, що хочете видалити співробітника ID ' + document.getElementById('modal_delete_helper_id').value + '?');">
-                        Видалити
+                    <button type="submit" class="delete-btn"
+                     onclick="return confirm('Ви впевнені, що хочете видалити співробітника ID ' + document.getElementById('modal_delete_helper_id').value + '?');">
+                     Видалити
                     </button>
                 </form>
             </div>
-        </div>
-    </div>
-
+            </div> </div> </section>
+        </main>
+    
 </body>
 </html>

@@ -15,10 +15,11 @@
             <a href="{{ url_for('admin_page') }}" class="nav-button" style="background-color: #007bff; margin-left: 10px;">🛠️ Адмін-Панель</a>
             {% endif %}
             <form method="POST" action="{{ url_for('backup_route') }}" style="display:inline;">
-        <button type="submit" class="backup-btn" 
-                onclick="return confirm('Ви впевнені, що хочете створити повну резервну копію бази даних? Це може зайняти деякий час.');">
-            💾 Резервна копія БД
-        </button>
+                <button type="submit" class="backup-btn" 
+                        onclick="return confirm('Ви впевнені, що хочете створити повну резервну копію бази даних? Це може зайняти деякий час.');">
+                    💾 Резервна копія БД
+                </button>
+            </form>
         </div>
 
         <nav class="nav-right">
@@ -30,9 +31,8 @@
 
     <main class="site-body">
         <section class="main-block">
-            <h2 class="section-title">Журнал Дій (Logs)</h2>
-
             <div class="table-container">
+                <h2 class="section-title" style="color: white; padding: 20px 20px 0 20px;">Журнал Дій (Logs)</h2>
                 <table class="data-table">
                     <thead>
                         <tr>

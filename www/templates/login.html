@@ -5,95 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        /* Основні стилі контейнера */
-        .login-container {
-            width: 100%;
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 30px;
-            background-color: #f4f4f4; /* Світлий фон форми */
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            color: #333;
-        }
-        .login-container h2 {
-            text-align: center;
-            margin-bottom: 25px;
-            color: #483D8B;
-        }
-        .login-container label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-        .login-container input[type="text"],
-        .login-container input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        .login-container button {
-            width: 100%;
-            padding: 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }
-        .login-container button:hover {
-            background-color: #0056b3;
-        }
-        .error-message {
-            color: red;
-            text-align: center;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        
-        /* --- АДАПТИВНІСТЬ: ПОКРАЩЕННЯ ДЛЯ МАЛИХ ЕКРАНІВ --- */
-        @media (max-width: 450px) {
-            .login-container {
-                /* Зменшуємо горизонтальний відступ навколо форми, щоб не було притискання */
-                margin: 50px 10px; 
-                /* Зменшуємо внутрішній відступ, щоб контент був щільнішим */
-                padding: 20px; 
-            }
-        }
-        /* --- КІНЕЦЬ АДАПТИВНОСТІ --- */
-
-    </style>
 </head>
 <body>
+    <main class="site-body" style="justify-content: center; align-items: center;">
+        <div class="login-container">
+            <h2>Вхід до системи</h2>
     
-    <div class="login-container">
-        <h2>Вхід до системи</h2>
-
-        {% if error %}
-            <p class="error-message">{{ error }}</p>
-        {% endif %}
-
-        <form method="POST" action="{{ url_for('login') }}">
-            
-            <div>
-                <label for="username">Ім'я користувача</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            
-            <div>
-                <label for="password">Пароль</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            
-            <button type="submit">Увійти</button>
-        </form>
-    </div>
+            {% if error %}
+                <p class="error-message">{{ error }}</p>
+            {% endif %}
+    
+            <form method="POST" action="{{ url_for('login') }}">
+                
+                <div>
+                    <label for="username">Ім'я користувача</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                
+                <div>
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <button type="submit">Увійти</button>
+            </form>
+        </div>
+    </main>
 
 </body>
 </html>

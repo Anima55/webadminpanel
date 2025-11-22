@@ -181,10 +181,8 @@
                         <div class="modal-buttons">
                             <div class="modal-buttons-left">
                                 <button type="submit" class="save-btn">Зберегти зміни</button>
-                        </div>
-                    </form>
-                    
-                    <div class="modal-buttons-delete-cancel">
+                            </div>
+                    </form> <div class="modal-buttons-delete-cancel">
                         <form method="POST" action="{{ url_for('delete_webadmin') }}" id="deleteForm" style="display:inline;">
                             <input type="hidden" name="webadmin_id" id="modal_delete_webadmin_id">
                             <button type="submit" class="delete-btn" 
@@ -193,9 +191,7 @@
                             </button>
                         </form>
                     </div>
-                </div>
-            </div>
-        </section>
+                </div> </div> </section>
     </main>
 
 </body>
