@@ -5,6 +5,7 @@ import psycopg
 import os
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 # DB_NAME - назва бд, DB_USER - Логін DB_PASSWORD - Пароль, DB_HOST - IP хоста DB_PORT - Порт
 DB_NAME = os.environ.get('DB_NAME', 'wdb')
@@ -528,6 +529,26 @@ def insert_webadmin_data(name, rank, password):
     finally:
         if conn: conn.close()
 
+# --- НОВА ФУНКЦІЯ: ЛОГУВАННЯ ДІЙ З ДАНИМИ ---
+def log_action(user_id, username, action, table_name, object_id=None):
+    """
+    Логує дії користувача у файл у форматі, схожому на CLF.
+    Формат: [Час] - [Користувач ID/Ім'я] - [Дія] - [Таблиця] - [ID Об'єкта]
+    """
+    # [22/Nov/2025:16:47:54 +0200]
+    timestamp = datetime.now().strftime('[%d/%b/%Y:%H:%M:%S +0200]')
+    
+    # Використовуємо '?' як аналог відсутнього IP у CLF, де 'user_id' це 'remote_logname'
+    log_entry = f"? {user_id} {username} {timestamp} \"{action} {table_name} ID:{object_id}\"\n"
+    
+    try:
+        # Відкриваємо файл логування в режимі додавання (append)
+        with open('app.log', 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+    except Exception as e:
+        print(f"Помилка логування: {e}")
+
+
 # --- НАЛАШТУВАННЯ FLASK ---
 app = Flask(__name__)
 # Встановлюємо Secret Key для Flash-повідомлень (якщо знадобиться)
@@ -630,7 +651,7 @@ def home():
     
     item_count = len(helpers)
 
-    user_rank = session.get('rank')
+    user_rank=session.get('user_rank')
     # Параметри sort_by та sort_type будуть автоматично доступні в шаблоні 
     # завдяки request.args, тому їх окремо передавати не обов'язково.
     return render_template('index.html', 
@@ -685,56 +706,116 @@ def tickets():
 
 # --- МАРШРУТ 4: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
 @app.route('/update_helper', methods=['POST'])
-# @login_required 
+@login_required
+@admin_required(['Curator', 'Manager', 'SuperAdmin'])
 def update_helper():
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('home'))
+
     helper_id = request.form.get('helper_id')
-    name = request.form.get('admin_name')
-    rank = request.form.get('admin_rank')
-    warnings = request.form.get('warnings_count')
+    admin_name = request.form.get('admin_name')
+    admin_rank = request.form.get('admin_rank')
+    warnings_count = request.form.get('warnings_count')
     
-    if update_helper_data(helper_id, name, rank, warnings):
-        print(f"✅ Дані співробітника ID {helper_id} успішно оновлено.")
-    else:
-        print(f"❌ Помилка оновлення даних для ID {helper_id}.")
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE helperinfo SET admin_name = %s, admin_rank = %s, warnings_count = %s WHERE helper_id = %s;",
+                (admin_name, admin_rank, warnings_count, helper_id)
+            )
+            conn.commit()
+            flash('Зміни успішно збережено!', 'success')
+            
+            # --- ВИКЛИК ЛОГУВАННЯ: UPDATE ---
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'UPDATE', 'helperinfo', helper_id)
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка оновлення даних: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
         
     return redirect(url_for('home'))
 
 # --- МАРШРУТ 5: ВИДАЛЕННЯ СПІВРОБІТНИКА ---
 @app.route('/delete_helper', methods=['POST'])
-# @login_required 
+@login_required
+@admin_required(['Curator', 'Manager', 'SuperAdmin'])
 def delete_helper():
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('home'))
+        
     helper_id = request.form.get('helper_id')
     
-    if delete_helper_data(helper_id):
-        print(f"✅ Співробітник ID {helper_id} успішно видалено.")
-    else:
-        # Тут виводиться повідомлення, якщо видалення заблоковано через FK
-        print(f"❌ Помилка видалення співробітника ID {helper_id} (можливо, він має відкриті тікети або ID не знайдено).")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM helperinfo WHERE helper_id = %s;", (helper_id,))
+            success = cur.rowcount > 0
+            conn.commit()
+            
+            if success:
+                flash('Співробітника успішно видалено!', 'success')
+                # --- ВИКЛИК ЛОГУВАННЯ: DELETE ---
+                log_action(session.get('webadmin_id'), session.get('username'), 
+                           'DELETE', 'helperinfo', helper_id)
+            else:
+                flash('Співробітника не знайдено.', 'error')
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка видалення співробітника: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
         
     return redirect(url_for('home'))
 
 # --- МАРШРУТ 6: ДОДАВАННЯ СПІВРОБІТНИКА ---
-@app.route('/add_helper', methods=['POST'])
-# @login_required 
+@app.route('/add-helper', methods=['POST'])
+@login_required
+@admin_required(['SuperAdmin', 'Manager'])
 def add_helper():
-    name = request.form.get('admin_name')
-    rank = request.form.get('admin_rank')
-    warnings = request.form.get('warnings_count') or 0 # Приймаємо 0, якщо поле порожнє
-    
-    if insert_helper_data(name, rank, warnings):
-        print(f"✅ Співробітник {name} успішно додано.")
-    else:
-        print(f"❌ Помилка додавання співробітника {name}.")
-        
-    return redirect(url_for('home'))
+    conn = get_connection()  # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('home'))
 
+    admin_name = request.form.get('admin_name')
+    admin_rank = request.form.get('admin_rank')
+    warnings_count = request.form.get('warnings_count')
+    new_helper_id = None
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO helperinfo (admin_name, admin_rank, warnings_count) VALUES (%s, %s, %s) RETURNING helper_id;",
+                (admin_name, admin_rank, warnings_count)
+            )
+            new_helper_id = cur.fetchone()[0]
+            conn.commit()
+            flash('Співробітника успішно додано!', 'success')
+            
+            # --- ВИКЛИК ЛОГУВАННЯ: CREATE ---
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'CREATE', 'helperinfo', new_helper_id)
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка додавання співробітника: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+    
+    return redirect(url_for('home'))
+             
 # --- МАРШРУТ 7: СТОРІНКА АДМІНА ---
 @app.route('/admin-page', methods=['GET'])
-# @login_required # Розкоментуйте, коли реалізуєте login_required
+@login_required # Розкоментуйте, коли реалізуєте login_required
+@admin_required(['SuperAdmin'])
 def admin_page():
-    # Перевірка на SuperAdmin (якщо не закоментовано login_required, це не є критичним)
-    if session.get('rank') != 'SuperAdmin':
-        return redirect(url_for('home')) 
     
     # Параметри сортування
     sort_by = request.args.get('sort_by')
@@ -762,71 +843,122 @@ def admin_page():
 @login_required
 @admin_required('SuperAdmin')
 def update_webadmin():
-    webadmin_id = request.form['webadmin_id']
-    username = request.form['webadmin_name']
-    rank = request.form['webadmin_rank']
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('admin_page'))
+        
+    webadmin_id = request.form.get('webadmin_id')
+    username = request.form.get('username')
+    webadmin_rank = request.form.get('webadmin_rank')
+    password = request.form.get('password')
     
-    conn = get_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                query = "UPDATE webadmin SET username = %s, webadmin_rank = %s"
-                params = [username, rank]
-                query += " WHERE webadmin_id = %s"
-                params.append(webadmin_id)
-                
-                cur.execute(query, tuple(params))
+    try:
+        with conn.cursor() as cur:
+            if password:
+                new_hashed_password = generate_password_hash(password)
+                cur.execute(
+                    "UPDATE webadmin SET username = %s, hashed_password = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
+                    (username, new_hashed_password, webadmin_rank, webadmin_id)
+                )
+            else:
+                cur.execute(
+                    "UPDATE webadmin SET username = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
+                    (username, webadmin_rank, webadmin_id)
+                )
+            
             conn.commit()
-            flash(f'WebAdmin ID {webadmin_id} успішно оновлено.', 'success')
-        except Exception as e:
-            # print(f"Помилка редагування WebAdmin: {e}")
-            flash('Помилка редагування WebAdmin.', 'danger')
-    
+            flash(f"Дані WebAdmin '{username}' успішно оновлено!", 'success')
+            
+            # --- ВИКЛИК ЛОГУВАННЯ: UPDATE ---
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'UPDATE', 'webadmin', webadmin_id)
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка оновлення даних WebAdmin: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        
     return redirect(url_for('admin_page'))
 
 # --- НОВИЙ МАРШРУТ: ВИДАЛЕННЯ ВЕБ-АДМІНА ---
-@app.route('/delete_webadmin', methods=['POST'])
-# @login_required
+@app.route('/delete-webadmin', methods=['POST'])
+@login_required
+@admin_required(['SuperAdmin'])
 def delete_webadmin():
-    # Перевірка на SuperAdmin
-    if session.get('rank') != 'SuperAdmin':
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
         return redirect(url_for('admin_page'))
         
     webadmin_id = request.form.get('webadmin_id')
     
-    if delete_webadmin_data(webadmin_id):
-        print(f"✅ Веб-адмін ID {webadmin_id} успішно видалено.")
-    else:
-        print(f"❌ Помилка видалення веб-адміна ID {webadmin_id}.")
+    # Запобігання видаленню власного облікового запису
+    if str(webadmin_id) == str(session.get('webadmin_id')):
+        flash('Ви не можете видалити власний обліковий запис!', 'error')
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        return redirect(url_for('admin_page'))
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM webadmin WHERE webadmin_id = %s;", (webadmin_id,))
+            success = cur.rowcount > 0
+            conn.commit()
+            
+            if success:
+                flash('WebAdmin успішно видалено!', 'success')
+                # --- ВИКЛИК ЛОГУВАННЯ: DELETE ---
+                log_action(session.get('webadmin_id'), session.get('username'), 
+                           'DELETE', 'webadmin', webadmin_id)
+            else:
+                flash('WebAdmin не знайдено.', 'error')
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка видалення WebAdmin: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
         
     return redirect(url_for('admin_page'))
 
 # --- НОВИЙ МАРШРУТ: ДОДАВАННЯ ВЕБ-АДМІНА ---
-@app.route('/add_webadmin', methods=['POST'])
+@app.route('/add-webadmin', methods=['POST'])
 @login_required
-@admin_required('SuperAdmin')
+@admin_required(['SuperAdmin'])
 def add_webadmin():
-    username = request.form['webadmin_name']
-    rank = request.form['webadmin_rank']
-    password = request.form['webadmin_password']
+    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    if not conn:
+        flash('Помилка підключення до бази даних.', 'error')
+        return redirect(url_for('admin_page'))
+
+    username = request.form.get('username')
+    password = request.form.get('password')
+    webadmin_rank = request.form.get('webadmin_rank')
     
-    # --- ЗМІНА ТУТ: ХЕШУВАННЯ ПАРОЛЯ ---
     hashed_password = generate_password_hash(password)
-    # ------------------------------------
+    new_webadmin_id = None
     
-    conn = get_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                # ВСТАВЛЯЄМО ХЕШОВАНИЙ ПАРОЛЬ
-                cur.execute("INSERT INTO webadmin (username, webadmin_rank, webadmin_password) VALUES (%s, %s, %s)", 
-                            (username, rank, hashed_password))
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO webadmin (username, hashed_password, webadmin_rank) VALUES (%s, %s, %s) RETURNING webadmin_id;",
+                (username, hashed_password, webadmin_rank)
+            )
+            new_webadmin_id = cur.fetchone()[0]
             conn.commit()
-            flash(f'WebAdmin "{username}" успішно додано.', 'success')
-        except Exception as e:
-            # print(f"Помилка додавання WebAdmin: {e}")
-            flash('Помилка додавання WebAdmin.', 'danger')
-    
+            flash(f"WebAdmin '{username}' успішно додано!", 'success')
+            
+            # --- ВИКЛИК ЛОГУВАННЯ: CREATE ---
+            log_action(session.get('webadmin_id'), session.get('username'), 
+                       'CREATE', 'webadmin', new_webadmin_id)
+            
+    except psycopg.Error as e:
+        conn.rollback()
+        flash(f'Помилка додавання WebAdmin: {e}', 'error')
+    finally:
+        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        
     return redirect(url_for('admin_page'))
 
 # --- НОВИЙ МАРШРУТ: ЕКСПОРТ HELPERINFO В EXCEL ---
@@ -917,6 +1049,35 @@ def export_ticketinfo():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
         download_name='TicketInfo_Export.xlsx'
+    )
+
+# --- НОВИЙ МАРШРУТ: СТОРІНКА ЛОГІВ ---
+@app.route('/logs')
+@login_required
+@admin_required(['SuperAdmin'])
+def logs_page():
+    log_entries = []
+    log_file_path = 'app.log' # Використовуйте шлях до вашого лог-файлу
+
+    try:
+        with open(log_file_path, 'r', encoding='utf-8') as f:
+            # Читаємо останні 500 рядків логу (для оптимізації)
+            log_entries = f.readlines()[-500:] 
+    except FileNotFoundError:
+        log_entries = ["Файл логів (app.log) не знайдено. Створіть його вручну або виконайте першу CRUD-операцію."]
+    except PermissionError:
+        log_entries = [f"ПОМИЛКА ПРАВ ДОСТУПУ: Не вдалося прочитати файл {log_file_path}. Перевірте права доступу для користувача, під яким працює Flask."]
+    except Exception as e:
+        log_entries = [f"Невідома помилка читання файлу логів: {e}"]
+        
+    # Перевертаємо список, щоб новіші записи були зверху
+    log_entries.reverse() 
+        
+    return render_template(
+        'logs.html', 
+        title='Журнал Дій',
+        log_entries=log_entries,
+        user_rank=session.get('user_rank')
     )
 
 # Маршрут для виходу (із попереднього кроку)
