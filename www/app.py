@@ -65,6 +65,55 @@ def admin_required(required_rank):
         return decorated_function
     return wrapper
 
+def curator_required(f):
+    """Декоратор для перевірки прав Curator (редагування тільки співробітників)"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session or not session.get('logged_in'):
+            return redirect(url_for('login'))
+        
+        user_rank = session.get('user_rank', 'Guest')
+        
+        # Curator може тільки редагувати, не може додавати/видаляти
+        if user_rank not in ['Curator', 'Manager', 'SuperAdmin']:
+            flash('Недостатньо прав для виконання цієї дії.', 'warning')
+            return redirect(url_for('home'))
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+def manager_required(f):
+    """Декоратор для перевірки прав Manager (без права встановлювати SuperAdmin)"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session or not session.get('logged_in'):
+            return redirect(url_for('login'))
+        
+        user_rank = session.get('user_rank', 'Guest')
+        
+        if user_rank not in ['Manager', 'SuperAdmin']:
+            flash('Недостатньо прав для виконання цієї дії.', 'warning')
+            return redirect(url_for('home'))
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+def can_edit_rank(user_rank, target_rank):
+    """Перевіряє, чи може користувач редагувати співробітника з вказаним рангом"""
+    rank_hierarchy = {
+        'Moder': 1,
+        'Admin': 2,
+        'Curator': 3,
+        'Manager': 4,
+        'SuperAdmin': 5
+    }
+    
+    user_level = rank_hierarchy.get(user_rank, 0)
+    target_level = rank_hierarchy.get(target_rank, 0)
+    
+    # Користувач може редагувати тільки співробітників з рівнем <= його рівню
+    return target_level <= user_level
+
 # ==========================================================
 # Функцій для табліци HelperInfo
 # ==========================================================
@@ -256,6 +305,7 @@ def get_helper_by_id(helper_id):
         conn.close()
     
     return helper
+
 
 # ==========================================================
 # Функцій для табліци TicketInfo
@@ -545,25 +595,36 @@ def get_webadmins_by_search(search_query, sort_by=None, sort_type='ASC', rank_fi
 # --- ФУНКЦІЯ W3: Оновлення даних веб-адміна (без зміни пароля)
 def update_webadmin_data(webadmin_id, name, rank):
     """Оновлює ім'я та ранг веб-адміна в таблиці webadmin."""
+    print(f"🔄 Спроба оновити webadmin: ID={webadmin_id}, Name={name}, Rank={rank}")
+    
     sql = """
     UPDATE public.webadmin
     SET webadmin_name = %s, webadmin_rank = %s
     WHERE webadmin_id = %s;
     """
     conn = get_connection()
-    if conn is None: return False
+    if conn is None: 
+        print("❌ Помилка: Не вдалося підключитися до бази даних")
+        return False
 
     try:
         with conn.cursor() as cur:
             cur.execute(sql, (name, rank, webadmin_id))
+            updated_rows = cur.rowcount
+            print(f"✅ Оновлено рядків: {updated_rows}")
+        
         conn.commit()
+        print("✅ Транзакція успішно зафіксована")
         return True
+        
     except Exception as e:
         print(f"❌ Помилка оновлення даних веб-адміна ID {webadmin_id}: {e}")
         conn.rollback()
         return False
     finally:
-        if conn: conn.close()
+        if conn: 
+            conn.close()
+            print("🔌 З'єднання закрито")
 
 # --- ФУНКЦІЯ W4: Видалення веб-адміна
 def delete_webadmin_data(webadmin_id):
@@ -929,9 +990,9 @@ def home():
 # --- МАРШРУТ 6: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
 @app.route('/update_helper', methods=['POST'])
 @login_required
-@admin_required(['Curator', 'Manager', 'SuperAdmin'])
+@curator_required
 def update_helper():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    conn = get_connection()
     if not conn:
         flash('Помилка підключення до бази даних.', 'error')
         return redirect(url_for('home'))
@@ -940,6 +1001,24 @@ def update_helper():
     admin_name = request.form.get('admin_name')
     admin_rank = request.form.get('admin_rank')
     warnings_count = request.form.get('warnings_count')
+    
+    # Отримуємо поточні дані співробітника
+    current_helper = get_helper_by_id(helper_id)
+    if not current_helper:
+        flash('Співробітника не знайдено.', 'error')
+        return redirect(url_for('home'))
+    
+    user_rank = session.get('user_rank')
+    
+    # Перевіряємо, чи може користувач редагувати цього співробітника
+    if not can_edit_rank(user_rank, current_helper['admin_rank']):
+        flash('Недостатньо прав для редагування співробітника з вищим рангом.', 'error')
+        return redirect(url_for('home'))
+    
+    # Перевіряємо, чи не намагається користувач встановити ранг вище за свій
+    if not can_edit_rank(user_rank, admin_rank):
+        flash('Недостатньо прав для встановлення цього рангу.', 'error')
+        return redirect(url_for('home'))
     
     try:
         with conn.cursor() as cur:
@@ -950,7 +1029,6 @@ def update_helper():
             conn.commit()
             flash('Зміни успішно збережено!', 'success')
             
-            # --- ВИКЛИК ЛОГУВАННЯ: UPDATE ---
             log_action(session.get('webadmin_id'), session.get('username'), 
                        'UPDATE', 'helperinfo', helper_id)
             
@@ -958,16 +1036,16 @@ def update_helper():
         conn.rollback()
         flash(f'Помилка оновлення даних: {e}', 'error')
     finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        conn.close()
         
     return redirect(url_for('home'))
 
 # --- МАРШРУТ 7: ВИДАЛЕННЯ СПІВРОБІТНИКА ---
 @app.route('/delete_helper', methods=['POST'])
 @login_required
-@admin_required(['Curator', 'Manager', 'SuperAdmin'])
+@manager_required  # Змінено з admin_required
 def delete_helper():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    conn = get_connection()
     if not conn:
         flash('Помилка підключення до бази даних.', 'error')
         return redirect(url_for('home'))
@@ -982,7 +1060,6 @@ def delete_helper():
             
             if success:
                 flash('Співробітника успішно видалено!', 'success')
-                # --- ВИКЛИК ЛОГУВАННЯ: DELETE ---
                 log_action(session.get('webadmin_id'), session.get('username'), 
                            'DELETE', 'helperinfo', helper_id)
             else:
@@ -992,16 +1069,16 @@ def delete_helper():
         conn.rollback()
         flash(f'Помилка видалення співробітника: {e}', 'error')
     finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        conn.close()
         
     return redirect(url_for('home'))
 
 # --- МАРШРУТ 8: ДОДАВАННЯ СПІВРОБІТНИКА ---
 @app.route('/add-helper', methods=['POST'])
 @login_required
-@admin_required(['SuperAdmin', 'Manager'])
+@manager_required  # Змінено з admin_required
 def add_helper():
-    conn = get_connection()  # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    conn = get_connection()
     if not conn:
         flash('Помилка підключення до бази даних.', 'error')
         return redirect(url_for('home'))
@@ -1009,6 +1086,13 @@ def add_helper():
     admin_name = request.form.get('admin_name')
     admin_rank = request.form.get('admin_rank')
     warnings_count = request.form.get('warnings_count')
+    
+    # Для Manager - заборонити встановлення SuperAdmin
+    user_rank = session.get('user_rank')
+    if user_rank == 'Manager' and admin_rank == 'SuperAdmin':
+        flash('Недостатньо прав для створення співробітника з рангом SuperAdmin.', 'error')
+        return redirect(url_for('home'))
+    
     new_helper_id = None
     
     try:
@@ -1021,7 +1105,6 @@ def add_helper():
             conn.commit()
             flash('Співробітника успішно додано!', 'success')
             
-            # --- ВИКЛИК ЛОГУВАННЯ: CREATE ---
             log_action(session.get('webadmin_id'), session.get('username'), 
                        'CREATE', 'helperinfo', new_helper_id)
             
@@ -1029,7 +1112,7 @@ def add_helper():
         conn.rollback()
         flash(f'Помилка додавання співробітника: {e}', 'error')
     finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        conn.close()
     
     return redirect(url_for('home'))
 
@@ -1134,42 +1217,74 @@ def admin_page():
 @login_required
 @admin_required('SuperAdmin')
 def update_webadmin():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    print("🔵 === ПОЧАТОК ОНОВЛЕННЯ WEBADMIN ===")
+    
+    conn = get_connection()
     if not conn:
+        print("❌ Помилка підключення до бази даних")
         flash('Помилка підключення до бази даних.', 'error')
         return redirect(url_for('admin_page'))
         
+    # Отримуємо дані з форми
     webadmin_id = request.form.get('webadmin_id')
-    username = request.form.get('username')
+    username = request.form.get('username')  # Зверніть увагу на ім'я поля!
     webadmin_rank = request.form.get('webadmin_rank')
     password = request.form.get('password')
     
+    # Логуємо отримані дані
+    print(f"📥 Отримані дані форми:")
+    print(f"   ID: {webadmin_id}")
+    print(f"   Ім'я: {username}")
+    print(f"   Ранг: {webadmin_rank}")
+    print(f"   Пароль: {'***' if password else 'Не вказано'}")
+    print(f"   Всі поля форми: {dict(request.form)}")
+    
     try:
         with conn.cursor() as cur:
-            if password:
+            if password and password.strip():  # Якщо пароль вказано і не порожній
                 new_hashed_password = generate_password_hash(password)
+                print(f"🔑 Оновлення з паролем")
                 cur.execute(
                     "UPDATE webadmin SET webadmin_name = %s, webadmin_password = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
                     (username, new_hashed_password, webadmin_rank, webadmin_id)
                 )
             else:
+                print(f"🔑 Оновлення без зміни пароля")
                 cur.execute(
                     "UPDATE webadmin SET webadmin_name = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
                     (username, webadmin_rank, webadmin_id)
                 )
             
-            conn.commit()
-            flash(f"Дані WebAdmin '{username}' успішно оновлено!", 'success')
+            # Перевіряємо скільки рядків оновлено
+            updated_rows = cur.rowcount
+            print(f"✅ Оновлено рядків: {updated_rows}")
             
-            # --- ВИКЛИК ЛОГУВАННЯ: UPDATE ---
-            log_action(session.get('webadmin_id'), session.get('username'), 
-                       'UPDATE', 'webadmin', webadmin_id)
+            conn.commit()
+            
+            if updated_rows > 0:
+                flash(f"Дані WebAdmin '{username}' успішно оновлено!", 'success')
+                print(f"✅ Успішне оновлення webadmin ID {webadmin_id}")
+                
+                # Логування дії
+                log_action(session.get('webadmin_id'), session.get('username'), 
+                           'UPDATE', 'webadmin', webadmin_id)
+            else:
+                flash('WebAdmin не знайдено або дані не змінилися.', 'warning')
+                print(f"⚠️  Жодного рядка не оновлено (можливо, ID не знайдено)")
             
     except psycopg.Error as e:
         conn.rollback()
-        flash(f'Помилка оновлення даних WebAdmin: {e}', 'error')
+        error_msg = f'Помилка оновлення даних WebAdmin: {e}'
+        flash(error_msg, 'error')
+        print(f"❌ Помилка бази даних: {e}")
+    except Exception as e:
+        conn.rollback()
+        error_msg = f'Невідома помилка: {e}'
+        flash(error_msg, 'error')
+        print(f"❌ Невідома помилка: {e}")
     finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        conn.close()
+        print("🔵 === ЗАВЕРШЕННЯ ОНОВЛЕННЯ WEBADMIN ===\n")
         
     return redirect(url_for('admin_page'))
 

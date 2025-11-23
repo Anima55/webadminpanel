@@ -6,7 +6,7 @@
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     </head>
-<body>
+<body data-user-rank="{{ user_rank }}">
 
     <header class="top-nav">
         <div class="nav-left">
@@ -126,9 +126,11 @@
                         {% endif %}
                     </div>
                     {% if main_content_title.startswith('Співробітники') %}
-                        <button class="add-btn" onclick="openAddModal()">
-                            ➕ Додати співробітника
-                        </button>
+                        {% if user_rank in ['Manager', 'SuperAdmin'] %}
+                            <button class="add-btn" onclick="openAddModal()">
+                                ➕ Додати співробітника
+                            </button>
+                        {% endif %}
                     {% endif %}
                 </div>
                 
@@ -152,7 +154,11 @@
                             
                             {% if main_content_title.startswith('Співробітники') %}
                             <td>
-                                <button class="edit-btn" onclick="openEditModal(this)">Редагувати</button>
+                                {% if user_rank == 'Curator' and row['admin_rank'] in ['Manager', 'SuperAdmin'] %}
+                                    <button class="edit-btn" disabled title="Недостатньо прав для редагування співробітників вище за рангом">Редагувати</button>
+                                {% else %}
+                                    <button class="edit-btn" onclick="openEditModal(this)">Редагувати</button>
+                                {% endif %}
                                 </td>
                             {% endif %}
                             </tr>
@@ -182,12 +188,16 @@
                 <input type="text" id="add_admin_name" name="admin_name" required>
                 
                 <label for="add_admin_rank">Ранг:</label>
-                <select id="modal_admin_rank" name="admin_rank" required>
+                <select id="add_admin_rank" name="admin_rank" required>
                     <option value="Moder">Moder</option>
                     <option value="Admin">Admin</option>
                     <option value="Curator">Curator</option>
-                    <option value="Manager">Manager</option>
-                    <option value="SuperAdmin">SuperAdmin</option>
+                    {% if user_rank in ['Manager', 'SuperAdmin'] %}
+                        <option value="Manager">Manager</option>
+                    {% endif %}
+                    {% if user_rank == 'SuperAdmin' %}
+                        <option value="SuperAdmin">SuperAdmin</option>
+                    {% endif %}
                 </select>
                 
                 <label for="add_warnings_count">Попередження (не обов'язково, 0 за замовчуванням):</label>
@@ -215,8 +225,12 @@
                     <option value="Moder">Moder</option>
                     <option value="Admin">Admin</option>
                     <option value="Curator">Curator</option>
-                    <option value="Manager">Manager</option>
-                    <option value="SuperAdmin">SuperAdmin</option>
+                    {% if user_rank in ['Manager', 'SuperAdmin'] %}
+                        <option value="Manager">Manager</option>
+                    {% endif %}
+                    {% if user_rank == 'SuperAdmin' %}
+                        <option value="SuperAdmin">SuperAdmin</option>
+                    {% endif %}
                 </select>
                 
                 <label for="modal_warnings_count">Попередження:</label>
@@ -226,17 +240,20 @@
                     <div class="modal-buttons-left">
                         <button type="submit" class="save-btn">Зберегти зміни</button>
                     </div>
-            </form> <div class="modal-buttons-delete-cancel">
-                <form method="POST" action="{{ url_for('delete_helper') }}" id="deleteForm" style="display:inline;">
-                    <input type="hidden" name="helper_id" id="modal_delete_helper_id">
-                    <button type="submit" class="delete-btn"
-                     onclick="return confirm('Ви впевнені, що хочете видалити співробітника ID ' + document.getElementById('modal_delete_helper_id').value + '?');">
-                     Видалити
-                    </button>
-                </form>
-            </div>
-            </div> </div> </section>
-        </main>
-    
+                    {% if user_rank in ['Manager', 'SuperAdmin'] %}
+                    <div class="modal-buttons-delete-cancel">
+                        <form method="POST" action="{{ url_for('delete_helper') }}" id="deleteForm" style="display:inline;">
+                            <input type="hidden" name="helper_id" id="modal_delete_helper_id">
+                            <button type="submit" class="delete-btn"
+                             onclick="return confirm('Ви впевнені, що хочете видалити співробітника ID ' + document.getElementById('modal_delete_helper_id').value + '?');">
+                             Видалити
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
