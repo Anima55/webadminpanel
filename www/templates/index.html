@@ -30,89 +30,91 @@
             <script src="{{ url_for('script', filename='excel.js') }}"></script>
 
             <div class="search-bar-container">
-                <div class="search-filter-wrapper">
-                    <div class="search-input-wrapper">
-                        <form action="{{ url_for('home') }}" method="GET" class="search-form" id="filterForm">
-                            <input type="text" id="searchQuery" name="query"
-                            placeholder="Пошук за ім'ям або рангом..." 
-                           value="{{ request.args.get('query', '') }}" class="search-input">
-                            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ active_sort_by }}">
-                            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ active_sort_type }}">
-                            </form>
-                    </div>
-                    <button type="button" class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
-                    <button type="button" class="export-btn" onclick="exportHelperInfoToExcel()">📊 Експорт в Excel</button> 
-                </div>
-            </div>
-            <div id="filterModal" class="modal">
-        <div class="modal-content filter-modal-content">
-            <span class="close-btn" onclick="closeFilterModal()">&times;</span>
-            <h2>Налаштування сортування</h2>
-            
-            <form method="GET" action="{{ request.path }}" id="filterForm">
-                
-                <input type="hidden" name="query" value="{{ request.args.get('query', '') }}">
-                
-                <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
-                <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
-
-                <h3>Виберіть критерій сортування:</h3>
-
-                {% set current_sort_by = request.args.get('sort_by', '') %}
-                {% set current_sort_type = request.args.get('sort_type', 'asc') %}
-
-                <div class="filter-option">
-                    <label>Ім'я (за алфавітом):</label>
-                    <div class="sort-control">
-                        <button type="button" class="sort-toggle-btn" 
-                                data-sort-field="admin_name" 
-                                onclick="applySort('admin_name', 'admin_name_btn')">
-                            {% if current_sort_by == 'admin_name' %}
-                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
-                            {% else %}
-                                🔄 Сортувати
-                            {% endif %}
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="filter-option">
-                    <label>Ранг:</label>
-                    <div class="sort-control">
-                        <button type="button" class="sort-toggle-btn" 
-                                data-sort-field="admin_rank" 
-                                onclick="applySort('admin_rank', 'admin_rank_btn')">
-                            {% if current_sort_by == 'admin_rank' %}
-                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
-                            {% else %}
-                                🔄 Сортувати
-                            {% endif %}
-                        </button>
-                    </div>
-                </div>
-
-                <div class="filter-option">
-                    <label>Попередження:</label>
-                    <div class="sort-control">
-                        <button type="button" class="sort-toggle-btn" 
-                                data-sort-field="warnings_count" 
-                                onclick="applySort('warnings_count', 'warnings_count_btn')">
-                            {% if current_sort_by == 'warnings_count' %}
-                                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
-                            {% else %}
-                                🔄 Сортувати
-                            {% endif %}
-                        </button>
-                    </div>
-                </div>
-                
-                </form>
-                <div class="modal-buttons" style="margin-top: 30px; justify-content: center;">
-                <button type="button" class="delete-btn" onclick="resetSortFilters()">Скинути сортування</button>
-            </div>
-            
+    <div class="search-filter-wrapper">
+        <div class="search-input-wrapper">
+            <form action="{{ url_for('home') }}" method="GET" class="search-form" id="filterForm">
+                <input type="text" id="searchQuery" name="query"
+                placeholder="Пошук за ім'ям" 
+               value="{{ request.args.get('query', '') }}" class="search-input">
+                <input type="hidden" name="sort_by" id="active_sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="sort_type" id="active_sort_type" value="{{ sort_type }}">
+                <input type="hidden" name="rank_filter" id="active_rank_filter" value="{{ rank_filter }}">
+            </form>
         </div>
+        <button type="button" class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button>
+        <button type="button" class="export-btn" onclick="exportHelperInfoToExcel()">📊 Експорт в Excel</button> 
     </div>
+</div>
+            <div id="filterModal" class="modal">
+    <div class="modal-content filter-modal-content">
+        <span class="close-btn" onclick="closeFilterModal()">&times;</span>
+        <h2>Налаштування фільтрів</h2>
+        
+        <form method="GET" action="{{ url_for('home') }}" id="filterForm">
+            
+            <input type="hidden" name="query" value="{{ request.args.get('query', '') }}">
+            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
+            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
+            <input type="hidden" name="rank_filter" id="active_rank_filter" value="{{ request.args.get('rank_filter', '') }}">
+
+            <h3>Сортування:</h3>
+
+            {% set current_sort_by = request.args.get('sort_by', '') %}
+            {% set current_sort_type = request.args.get('sort_type', 'asc') %}
+
+            <div class="filter-option">
+    <label>Ім'я (за алфавітом):</label>
+    <div class="sort-control">
+        <button type="button" class="sort-toggle-btn" id="admin_name_btn"
+                data-sort-field="admin_name" onclick="applySort('admin_name', 'admin_name_btn')">
+            {% if current_sort_by == 'admin_name' %}
+                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+            {% else %}
+                🔄 Сортувати
+            {% endif %}
+        </button>
+    </div>
+</div>
+
+<div class="filter-option">
+    <label>Попередження:</label>
+    <div class="sort-control">
+        <button type="button" class="sort-toggle-btn" id="warnings_count_btn"
+                data-sort-field="warnings_count" onclick="applySort('warnings_count', 'warnings_count_btn')">
+            {% if current_sort_by == 'warnings_count' %}
+                {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
+            {% else %}
+                🔄 Сортувати
+            {% endif %}
+        </button>
+    </div>
+</div>
+
+            <h3 style="margin-top: 20px;">Фільтр за рангом:</h3>
+            
+            {% set current_rank_filter = request.args.get('rank_filter', '') %}
+            
+            <div class="rank-filter-section">
+                <label for="rank_filter_select">Оберіть ранг:</label>
+                <select id="rank_filter_select" class="rank-select">
+                    <option value="">Всі ранги</option>
+                    <option value="Moder" {% if current_rank_filter == 'Moder' %}selected{% endif %}>Moder</option>
+                    <option value="Admin" {% if current_rank_filter == 'Admin' %}selected{% endif %}>Admin</option>
+                    <option value="Curator" {% if current_rank_filter == 'Curator' %}selected{% endif %}>Curator</option>
+                    <option value="Manager" {% if current_rank_filter == 'Manager' %}selected{% endif %}>Manager</option>
+                    <option value="SuperAdmin" {% if current_rank_filter == 'SuperAdmin' %}selected{% endif %}>SuperAdmin</option>
+                </select>
+            </div>
+            
+        </form>
+        
+        <div class="modal-buttons" style="margin-top: 30px; justify-content: center;">
+    <button type="button" class="save-btn" onclick="applyAllFilters()">Застосувати фільтри</button>
+    <button type="button" class="delete-btn" onclick="resetSortFilters()">Скинути всі фільтри</button>
+</div>
+
+    </div>
+</div>
     
             <div class="table-container">
                 <div class="main-block">

@@ -11,16 +11,13 @@
     <header class="top-nav">
         <div class="nav-left">
             <div class="nav-icon"><a href="/" style="color:white; text-decoration:none;">🛡️ ForgeRock</a></div> 
-            {% if user_rank == 'SuperAdmin' %}
-            <a href="/admin-page" class="nav-button" style="background-color: #007bff; margin-left: 10px;">🛠️ Адмін-Панель</a>
-            {% endif %}
             <a href="/logs" class="logs-btn">📑 Журнал Дій</a>
             <form method="POST" action="{{ url_for('backup_route') }}" style="display:inline;">
-        <button type="submit" class="backup-btn" 
-                onclick="return confirm('Ви впевнені, що хочете створити повну резервну копію бази даних? Це може зайняти деякий час.');">
-            💾 Резервна копія БД
-        </button>
-    </form>
+                <button type="submit" class="backup-btn" 
+                        onclick="return confirm('Ви впевнені, що хочете створити повну резервну копію бази даних? Це може зайняти деякий час.');">
+                    💾 Резервна копія БД
+                </button>
+            </form>
         </div>
 
         <nav class="nav-right">
@@ -38,8 +35,11 @@
             <div class="search-bar-container">
                 <div class="search-filter-wrapper">
                     <div class="search-input-wrapper">
-                        <form method="GET" action="{{ request.path }}">
-                        <input type="text" placeholder="Пошук (Ім'я, Ранг, ID)..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
+                        <form method="GET" action="{{ request.path }}" id="filterForm">
+                            <input type="text" placeholder="Пошук (Ім'я, Ранг, ID)..." class="search-input" name="query" value="{{ request.args.get('query', '') }}">
+                            <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
+                            <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
+                            <input type="hidden" name="rank_filter" id="active_rank_filter" value="{{ request.args.get('rank_filter', '') }}">
                         </form>
                     </div>
                     <button class="filter-btn" onclick="openFilterModal()">⚙️ Фільтр</button> 
@@ -50,16 +50,16 @@
             <div id="filterModal" class="modal">
                 <div class="modal-content filter-modal-content">
                     <span class="close-btn" onclick="closeFilterModal()">&times;</span>
-                    <h2>Налаштування сортування (WebAdmin)</h2>
+                    <h2>Налаштування фільтрів</h2>
                     
                     <form method="GET" action="{{ request.path }}" id="filterForm">
-                        
+    
                         <input type="hidden" name="query" value="{{ request.args.get('query', '') }}">
-                        
                         <input type="hidden" name="sort_by" id="active_sort_by" value="{{ request.args.get('sort_by', '') }}">
                         <input type="hidden" name="sort_type" id="active_sort_type" value="{{ request.args.get('sort_type', 'asc') }}">
+                        <input type="hidden" name="rank_filter" id="active_rank_filter" value="{{ request.args.get('rank_filter', '') }}">
 
-                        <h3>Виберіть критерій сортування:</h3>
+                        <h3>Сортування:</h3>
 
                         {% set current_sort_by = request.args.get('sort_by', '') %}
                         {% set current_sort_type = request.args.get('sort_type', 'asc') %}
@@ -67,9 +67,8 @@
                         <div class="filter-option">
                             <label>Ім'я (за алфавітом):</label>
                             <div class="sort-control">
-                                <button type="button" class="sort-toggle-btn" 
-                                        data-sort-field="webadmin_name" 
-                                        onclick="applySort('webadmin_name', 'webadmin_name_btn')">
+                                <button type="button" class="sort-toggle-btn" id="webadmin_name_btn"
+                                        data-sort-field="webadmin_name" onclick="applySort('webadmin_name', 'webadmin_name_btn')">
                                     {% if current_sort_by == 'webadmin_name' %}
                                         {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
                                     {% else %}
@@ -79,58 +78,67 @@
                             </div>
                         </div>
                         
-                        <div class="filter-option">
-                            <label>Ранг:</label>
-                            <div class="sort-control">
-                                <button type="button" class="sort-toggle-btn" 
-                                        data-sort-field="webadmin_rank" 
-                                        onclick="applySort('webadmin_rank', 'webadmin_rank_btn')">
-                                    {% if current_sort_by == 'webadmin_rank' %}
-                                        {{ '⬇️ Спадання' if current_sort_type == 'desc' else '⬆️ Зростання' }}
-                                    {% else %}
-                                        🔄 Сортувати
-                                    {% endif %}
-                                </button>
-                            </div>
+                        <h3 style="margin-top: 20px;">Фільтр за рангом:</h3>
+
+                        {% set current_rank_filter = request.args.get('rank_filter', '') %}
+                        
+                        <div class="rank-filter-section">
+                            <label for="rank_filter_select">Оберіть ранг:</label>
+                            <select id="rank_filter_select" class="rank-select">
+                                <option value="">Всі ранги</option>
+                                <option value="Curator" {% if current_rank_filter == 'Curator' %}selected{% endif %}>Curator</option>
+                                <option value="Manager" {% if current_rank_filter == 'Manager' %}selected{% endif %}>Manager</option>
+                                <option value="SuperAdmin" {% if current_rank_filter == 'SuperAdmin' %}selected{% endif %}>SuperAdmin</option>
+                            </select>
                         </div>
 
                     </form>
                     
                     <div class="modal-buttons" style="margin-top: 30px; justify-content: center;">
-                        <button type="button" class="delete-btn" onclick="resetSortFilters()">Скинути сортування</button>
+                        <button type="button" class="save-btn" onclick="applyAllAdminFilters()">Застосувати фільтри</button>
+                        <button type="button" class="delete-btn" onclick="resetAdminFilters()">Скинути всі фільтри</button>
                     </div>
 
                 </div>
             </div>
             
             <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ID WebAdmin</th>
-                            <th>Ім'я</th>
-                            <th>Ранг</th>
-                            <th>Дії</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for admin in webadmin_list %}
-                        <tr data-id="{{ admin.webadmin_id }}" data-name="{{ admin.webadmin_name }}" data-rank="{{ admin.webadmin_rank }}">
-                            <td>{{ admin.webadmin_id }}</td>
-                            <td>{{ admin.webadmin_name }}</td>
-                            <td>{{ admin.webadmin_rank }}</td>
-                            <td>
-                                <button class="edit-btn" onclick="openEditWebadminModal(this)">✏️ Редагувати</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% if not webadmin_list %}
-                        <tr>
-                            <td colspan="4" style="text-align: center;">Веб-адміни не знайдено.</td>
-                        </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                <div class="main-block">
+                    <div class="content-header">
+                        <div>
+                            <h2>{{ main_content_title }}</h2>
+                            <p class="item-count-text">Кількість: {{ webadmin_list|length }}</p>
+                        </div>
+                    </div>
+                
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID WebAdmin</th>
+                                <th>Ім'я</th>
+                                <th>Ранг</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for admin in webadmin_list %}
+                            <tr data-id="{{ admin.webadmin_id }}" data-name="{{ admin.webadmin_name }}" data-rank="{{ admin.webadmin_rank }}">
+                                <td>{{ admin.webadmin_id }}</td>
+                                <td>{{ admin.webadmin_name }}</td>
+                                <td>{{ admin.webadmin_rank }}</td>
+                                <td>
+                                    <button class="edit-btn" onclick="openEditWebadminModal(this)">Редагувати</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not webadmin_list %}
+                            <tr>
+                                <td colspan="4" style="text-align: center;">Веб-адміни не знайдено.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
             <div id="addWebadminModal" class="modal">
@@ -144,7 +152,7 @@
                         <input type="text" id="add_webadmin_name" name="webadmin_name" required>
                         
                         <label for="add_webadmin_rank">Ранг:</label>
-                        <select id="modal_webadmin_rank" name="webadmin_rank" required>
+                        <select id="add_webadmin_rank" name="webadmin_rank" required>
                             <option value="Curator">Curator</option>
                             <option value="Manager">Manager</option>
                             <option value="SuperAdmin">SuperAdmin</option>
@@ -177,12 +185,16 @@
                             <option value="Manager">Manager</option>
                             <option value="SuperAdmin">SuperAdmin</option>
                         </select>
+
+                        <label for="modal_webadmin_password">Новий пароль (залишіть порожнім, щоб не змінювати):</label>
+                        <input type="password" id="modal_webadmin_password" name="webadmin_password">
                         
                         <div class="modal-buttons">
                             <div class="modal-buttons-left">
                                 <button type="submit" class="save-btn">Зберегти зміни</button>
                             </div>
-                    </form> <div class="modal-buttons-delete-cancel">
+                    </form> 
+                    <div class="modal-buttons-delete-cancel">
                         <form method="POST" action="{{ url_for('delete_webadmin') }}" id="deleteForm" style="display:inline;">
                             <input type="hidden" name="webadmin_id" id="modal_delete_webadmin_id">
                             <button type="submit" class="delete-btn" 
@@ -191,8 +203,63 @@
                             </button>
                         </form>
                     </div>
-                </div> </div> </section>
+                </div>
+            </div>
+        </section>
     </main>
+
+    <script>
+        // Функції для фільтрації на адмін-сторінці
+        window.applyAllAdminFilters = function() {
+            const rankSelect = document.getElementById('rank_filter_select');
+            const activeRankFilterInput = document.getElementById('active_rank_filter');
+            
+            if (rankSelect && activeRankFilterInput) {
+                activeRankFilterInput.value = rankSelect.value;
+            }
+            
+            document.getElementById('filterForm').submit();
+            closeFilterModal();
+        }
+
+        window.resetAdminFilters = function() {
+            const activeSortByInput = document.getElementById('active_sort_by');
+            const activeSortTypeInput = document.getElementById('active_sort_type');
+            const activeRankFilterInput = document.getElementById('active_rank_filter');
+            const rankSelect = document.getElementById('rank_filter_select');
+            const searchInput = document.querySelector('input[name="query"]');
+            const filterForm = document.getElementById('filterForm');
+            
+            // 1. Очищаємо параметри сортування та фільтрації
+            activeSortByInput.value = '';
+            activeSortTypeInput.value = 'asc';
+            activeRankFilterInput.value = '';
+            
+            // 2. Скидаємо вибір у селекті
+            if (rankSelect) {
+                rankSelect.value = '';
+            }
+            
+            // 3. Скидаємо пошуковий запит
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            
+            // 4. Скидаємо текст всіх кнопок сортування
+            document.querySelectorAll('.sort-toggle-btn').forEach(button => {
+                button.innerHTML = '🔄 Сортувати';
+                button.style.backgroundColor = '#007bff';
+            });
+            
+            // 5. Надсилаємо форму
+            filterForm.submit();
+        }
+
+        // Оновлюємо кнопки при завантаженні сторінки
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSortButtonsText();
+        });
+    </script>
 
 </body>
 </html>

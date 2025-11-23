@@ -70,48 +70,49 @@ def admin_required(required_rank):
 # ==========================================================
 
 # --- ФУНКЦІЯ H1: Для отримання всіх помічників (для головної сторінки) ---
-def get_all_helpers(query=None, sort_by=None, sort_type='ASC'): # ДОДАНО: query
+def get_all_helpers(query=None, sort_by=None, sort_type='ASC', rank_filter=None):
     """Повертає всіх помічників з таблиці helperinfo, з можливістю сортування та пошуку."""
     
     conn = get_connection()
     if conn is None:
         return []
 
-    # Визначення допустимих полів сортування
-    valid_sort_fields = ['helper_id', 'admin_name', 'admin_rank', 'warnings_count']
+    # Базовий SQL запит
+    sql = "SELECT helper_id, admin_name, admin_rank, warnings_count FROM helperinfo"
+    params = []
+    conditions = []
     
-    # Побудова SQL-запиту
-    # 1. WHERE Clause (Пошук/Фільтрація)
-    where_clause = ""
-    params = {}
-    
+    # Додаємо пошук якщо є query
     if query:
-        # Додаємо умову пошуку по імені або рангу (case-insensitive LIKE)
-        where_clause = " WHERE admin_name ILIKE %(query)s OR admin_rank ILIKE %(query)s OR warnings_count ILIKE %(query)s"
-        # %% використовується для передачі % у psycopg
-        params['query'] = f"%{query}%"
-
-    # 2. ORDER BY Clause (Сортування)
-    order_clause = ""
-    if sort_by and sort_by in valid_sort_fields:
-        # Перевіряємо, чи ASC чи DESC
-        sort_type = 'DESC' if sort_type and sort_type.upper() == 'DESC' else 'ASC'
-        
-        # Використовуємо ідентифікатор поля напряму, щоб уникнути SQL Injection
-        order_clause = f" ORDER BY {psycopg.sql.Identifier(sort_by)} {psycopg.sql.SQL(sort_type)}"
+        conditions.append("(admin_name ILIKE %s OR admin_rank ILIKE %s OR CAST(warnings_count AS TEXT) ILIKE %s OR CAST(helper_id AS TEXT) ILIKE %s)")
+        search_pattern = f"%{query}%"
+        params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
     
-    # 3. Формування повного запиту
-    sql_template = f"SELECT helper_id, admin_name, admin_rank, warnings_count FROM helperinfo{where_clause}{order_clause}"
+    # Додаємо фільтр по рангу якщо вказано
+    if rank_filter:
+        conditions.append("admin_rank = %s")
+        params.append(rank_filter)
+    
+    # Додаємо WHERE якщо є умови
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    
+    # Додаємо сортування якщо вказано
+    valid_sort_fields = ['helper_id', 'admin_name', 'admin_rank', 'warnings_count']
+    if sort_by and sort_by in valid_sort_fields:
+        sort_direction = 'DESC' if sort_type.upper() == 'DESC' else 'ASC'
+        sql += f" ORDER BY {sort_by} {sort_direction}"
     
     results = []
     try:
         with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            # Використовуємо cur.execute() з параметрами для безпеки
-            cur.execute(sql_template, params)
+            if params:
+                cur.execute(sql, params)
+            else:
+                cur.execute(sql)
             results = cur.fetchall()
     except Exception as e:
         print(f"Помилка при отриманні даних HelperInfo: {e}")
-        # Залишаємо print для логування, як у вашому стилі
     finally:
         conn.close()
         
@@ -493,9 +494,9 @@ def get_all_webadmins(sort_by=None, sort_type='ASC'):
     finally:
         if conn: conn.close()
 
-# --- ФУНКЦІЯ W2: Для пошуку веб-адмінів
-def get_webadmins_by_search(search_query, sort_by=None, sort_type='ASC'):
-    """Повертає веб-адмінів, які відповідають search_query, з сортуванням."""
+# --- ФУНКЦІЯ W2: Для пошуку веб-адмінів ---
+def get_webadmins_by_search(search_query, sort_by=None, sort_type='ASC', rank_filter=None):
+    """Повертає веб-адмінів, які відповідають search_query, з сортуванням та фільтрацією за рангом."""
     conn = get_connection()
     if conn is None: return []
 
@@ -503,17 +504,26 @@ def get_webadmins_by_search(search_query, sort_by=None, sort_type='ASC'):
     order_column = sort_by if sort_by in valid_sort_fields else 'webadmin_id'
     order_direction = sort_type.upper() if sort_type.upper() in ('ASC', 'DESC') else 'ASC'
 
+    # Базовий SQL запит
     sql = f"""
     SELECT webadmin_id, webadmin_name, webadmin_rank
     FROM public.webadmin 
     WHERE 
-        webadmin_name ILIKE %s OR 
+        (webadmin_name ILIKE %s OR 
         webadmin_rank ILIKE %s OR
-        CAST(webadmin_id AS TEXT) ILIKE %s 
-    ORDER BY {order_column} {order_direction}; 
+        CAST(webadmin_id AS TEXT) ILIKE %s)
     """
+    
     search_pattern = f"%{search_query}%" 
-    params = (search_pattern, search_pattern, search_pattern)
+    params = [search_pattern, search_pattern, search_pattern]
+    
+    # Додаємо фільтр по рангу якщо вказано
+    if rank_filter:
+        sql += " AND webadmin_rank = %s"
+        params.append(rank_filter)
+    
+    # Додаємо сортування
+    sql += f" ORDER BY {order_column} {order_direction}" 
 
     try:
         with conn.cursor() as cur:
@@ -682,6 +692,56 @@ def backup_database():
                    'BACKUP_FAILED', 'database', 'Перевірте, чи коректно вказано шлях до pg_dump.')
         return False, "Помилка: Перевірте, чи коректно вказано шлях до pg_dump."
 
+# --- ФУНКЦІЯ W8: Для отримання веб-адмінів з фільтрацією за рангом ---
+def get_webadmins_by_rank(rank_filter=None, sort_by=None, sort_type='ASC'):
+    """Повертає веб-адмінів з фільтрацією за рангом, з можливістю сортування."""
+    
+    valid_sort_fields = ['webadmin_id', 'webadmin_name', 'webadmin_rank']
+    order_column = sort_by if sort_by in valid_sort_fields else 'webadmin_id'
+    order_direction = sort_type.upper() if sort_type.upper() in ('ASC', 'DESC') else 'ASC'
+    
+    # Базовий SQL запит
+    sql = f"""
+    SELECT webadmin_id, webadmin_name, webadmin_rank 
+    FROM public.webadmin 
+    """
+    
+    params = []
+    
+    # Додаємо фільтр по рангу якщо вказано
+    if rank_filter:
+        sql += " WHERE webadmin_rank = %s"
+        params.append(rank_filter)
+    
+    # Додаємо сортування
+    sql += f" ORDER BY {order_column} {order_direction}"
+    
+    conn = get_connection()
+    if conn is None: 
+        return []
+
+    try:
+        with conn.cursor() as cur:
+            if params:
+                cur.execute(sql, params)
+            else:
+                cur.execute(sql)
+                
+            column_names = [desc[0] for desc in cur.description]
+            webadmins = cur.fetchall()
+            
+            data = []
+            for row in webadmins:
+                data.append(dict(zip(column_names, row)))
+            return data
+
+    except Exception as e:
+        print(f"❌ Помилка читання даних webadmin з фільтром за рангом: {e}")
+        return []
+    finally:
+        if conn: 
+            conn.close()
+
 # --- НАЛАШТУВАННЯ FLASK ---
 app = Flask(__name__)
 # Встановлюємо Secret Key для Flash-повідомлень (якщо знадобиться)
@@ -830,30 +890,30 @@ def export_ticketinfo():
 @app.route('/')
 @login_required 
 def home():
-    """Відображає таблицю helperinfo, з підтримкою пошуку та сортування."""
+    """Відображає таблицю helperinfo, з можливістю пошуку та сортування."""
     
     search_query = request.args.get('query', '')
-    query = request.args.get('query', '')
     
-    # 1. Отримуємо параметри сортування з URL (тепер вони простіші)
+    # Отримуємо параметри сортування з URL
     sort_by = request.args.get('sort_by', '')
-    sort_type = request.args.get('sort_type', 'asc').upper() # ASC або DESC
-        
-    # 2. Вибираємо функцію для отримання даних
-    if search_query:
-        # Передаємо сортування в функцію пошуку
-        helpers = get_helpers_by_search(search_query, sort_by, sort_type) 
+    sort_type = request.args.get('sort_type', 'asc')
+    rank_filter = request.args.get('rank_filter', '')
+    
+    # Використовуємо одну функцію для отримання даних
+    helpers = get_all_helpers(query=search_query, sort_by=sort_by, sort_type=sort_type, rank_filter=rank_filter)
+    
+    # Формуємо заголовок з урахуванням фільтрів
+    if search_query and rank_filter:
+        main_title = f"Співробітники (HelperInfo) - Пошук: '{search_query}', Ранг: {rank_filter}"
+    elif search_query:
         main_title = f"Співробітники (HelperInfo) - Пошук: '{search_query}'"
+    elif rank_filter:
+        main_title = f"Співробітники (HelperInfo) - Ранг: {rank_filter}"
     else:
-        # Передаємо сортування в функцію отримання всіх даних
-        helpers = get_all_helpers(query, sort_by, sort_type)
         main_title = "Співробітники (HelperInfo)"
     
     item_count = len(helpers)
 
-    user_rank=session.get('user_rank')
-    # Параметри sort_by та sort_type будуть автоматично доступні в шаблоні 
-    # завдяки request.args, тому їх окремо передавати не обов'язково.
     return render_template('index.html', 
         title="Helper Information", 
         table_data=helpers,
@@ -861,9 +921,10 @@ def home():
         main_content_title=main_title,
         sort_by=sort_by,
         sort_type=sort_type,
+        rank_filter=rank_filter,
         item_count=item_count,
-        user_rank=user_rank
-        )
+        user_rank=session.get('user_rank')
+    )
 
 # --- МАРШРУТ 6: ОНОВЛЕННЯ ДАНИХ СПІВРОБІТНИКА ---
 @app.route('/update_helper', methods=['POST'])
@@ -1023,29 +1084,49 @@ def export_helperinfo():
 # ==========================================================
 # --- МАРШРУТ 10: СТОРІНКА АДМІНА ---
 @app.route('/admin-page', methods=['GET'])
-@login_required # Розкоментуйте, коли реалізуєте login_required
+@login_required
 @admin_required(['SuperAdmin'])
 def admin_page():
     
     # Параметри сортування
-    sort_by = request.args.get('sort_by')
+    sort_by = request.args.get('sort_by', '')
     sort_type = request.args.get('sort_type', 'asc')
     
     # Пошук
-    search_query = request.args.get('query')
+    search_query = request.args.get('query', '')
+    
+    # Фільтр за рангом
+    rank_filter = request.args.get('rank_filter', '')
     
     if search_query:
         # Використовуємо функцію пошуку з параметрами сортування
         webadmin_list = get_webadmins_by_search(search_query, sort_by, sort_type)
+    elif rank_filter:
+        # Використовуємо функцію фільтрації за рангом
+        webadmin_list = get_webadmins_by_rank(rank_filter, sort_by, sort_type)
     else:
         # Отримуємо всі дані з параметрами сортування
         webadmin_list = get_all_webadmins(sort_by, sort_type)
+    
+    # Формуємо заголовок з урахуванням фільтрів
+    if search_query and rank_filter:
+        main_title = f"Веб-Адміністратори - Пошук: '{search_query}', Ранг: {rank_filter}"
+    elif search_query:
+        main_title = f"Веб-Адміністратори - Пошук: '{search_query}'"
+    elif rank_filter:
+        main_title = f"Веб-Адміністратори - Ранг: {rank_filter}"
+    else:
+        main_title = "Веб-Адміністратори"
         
     return render_template(
         'admin-page.html', 
         title='Admin Panel - WebAdmins',
         webadmin_list=webadmin_list,
-        user_rank=session.get('rank')
+        main_content_title=main_title,
+        sort_by=sort_by,
+        sort_type=sort_type,
+        rank_filter=rank_filter,
+        user_rank=session.get('user_rank')
     )
 
 # --- МАРШРУТ 11: ОНОВЛЕННЯ ВЕБ-АДМІНА ---
@@ -1068,12 +1149,12 @@ def update_webadmin():
             if password:
                 new_hashed_password = generate_password_hash(password)
                 cur.execute(
-                    "UPDATE webadmin SET username = %s, hashed_password = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
+                    "UPDATE webadmin SET webadmin_name = %s, webadmin_password = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
                     (username, new_hashed_password, webadmin_rank, webadmin_id)
                 )
             else:
                 cur.execute(
-                    "UPDATE webadmin SET username = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
+                    "UPDATE webadmin SET webadmin_name = %s, webadmin_rank = %s WHERE webadmin_id = %s;",
                     (username, webadmin_rank, webadmin_id)
                 )
             
@@ -1132,27 +1213,32 @@ def delete_webadmin():
         
     return redirect(url_for('admin_page'))
 
+
 # --- МАРШРУТ 14: ДОДАВАННЯ ВЕБ-АДМІНА ---
 @app.route('/add-webadmin', methods=['POST'])
 @login_required
 @admin_required(['SuperAdmin'])
 def add_webadmin():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    conn = get_connection()
     if not conn:
         flash('Помилка підключення до бази даних.', 'error')
         return redirect(url_for('admin_page'))
-
-    username = request.form.get('username')
-    password = request.form.get('password')
+    
+    username = request.form.get('webadmin_name')
+    password = request.form.get('webadmin_password')
     webadmin_rank = request.form.get('webadmin_rank')
     
-    hashed_password = generate_password_hash(password)
-    new_webadmin_id = None
+    if not username or not password or not webadmin_rank:
+        flash('Усі поля обов\'язкові для заповнення.', 'error')
+        return redirect(url_for('admin_page'))
     
+    hashed_password = generate_password_hash(password)
+
     try:
         with conn.cursor() as cur:
+            # ИСПРАВЛЕНИЕ: Используем INSERT вместо UPDATE
             cur.execute(
-                "INSERT INTO webadmin (username, hashed_password, webadmin_rank) VALUES (%s, %s, %s) RETURNING webadmin_id;",
+                "INSERT INTO webadmin (webadmin_name, webadmin_password, webadmin_rank) VALUES (%s, %s, %s) RETURNING webadmin_id;",
                 (username, hashed_password, webadmin_rank)
             )
             new_webadmin_id = cur.fetchone()[0]
@@ -1167,7 +1253,7 @@ def add_webadmin():
         conn.rollback()
         flash(f'Помилка додавання WebAdmin: {e}', 'error')
     finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        conn.close()
         
     return redirect(url_for('admin_page'))
 

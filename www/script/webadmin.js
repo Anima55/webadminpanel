@@ -55,7 +55,7 @@ window.openAddWebadminModal = function() {
         // ВИПРАВЛЕННЯ: Коректне скидання поля Рангу (<select>)
         const rankSelect = document.getElementById('add_webadmin_rank');
         if (rankSelect && rankSelect.options.length > 0) {
-            rankSelect.selectedIndex = 0; // Обираємо першу опцію ("Moder")
+            rankSelect.selectedIndex = 0; // Обираємо першу опцію ("Curator")
         }
         
         document.getElementById('add_webadmin_password').value = ''; 
@@ -63,6 +63,7 @@ window.openAddWebadminModal = function() {
         addModal.style.display = 'block';
     }
 };
+
 /**
  * Закриває модальне вікно додавання.
  */
@@ -107,5 +108,83 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (addModal && event.target === addModal) {
             window.closeAddWebadminModal();
         }
+        
+        // Закрити модальне вікно фільтрації
+        const filterModal = document.getElementById('filterModal');
+        if (filterModal && event.target === filterModal) {
+            window.closeFilterModal();
+        }
     };
 });
+
+// ==========================================================
+// ФУНКЦІОНАЛ ДЛЯ ФІЛЬТРАЦІЇ ЗА РАНГОМ НА ADMIN-PAGE
+// ==========================================================
+
+/**
+ * Застосовує фільтр за рангом для адмін-сторінки
+ */
+window.applyRankFilterAdmin = function() {
+    const rankSelect = document.getElementById('rank_filter_select');
+    const activeRankFilterInput = document.getElementById('active_rank_filter');
+    const filterForm = document.getElementById('filterForm');
+    
+    if (rankSelect && activeRankFilterInput) {
+        // Оновлюємо значення прихованого поля
+        activeRankFilterInput.value = rankSelect.value;
+        
+        // Надсилаємо форму
+        filterForm.submit();
+    }
+}
+
+/**
+ * Скидає всі фільтри для адмін-сторінки
+ */
+window.resetAdminFilters = function() {
+    const activeSortByInput = document.getElementById('active_sort_by');
+    const activeSortTypeInput = document.getElementById('active_sort_type');
+    const activeRankFilterInput = document.getElementById('active_rank_filter');
+    const rankSelect = document.getElementById('rank_filter_select');
+    const searchInput = document.querySelector('input[name="query"]');
+    const filterForm = document.getElementById('filterForm');
+    
+    // 1. Очищаємо параметри сортування та фільтрації
+    activeSortByInput.value = '';
+    activeSortTypeInput.value = 'asc';
+    activeRankFilterInput.value = '';
+    
+    // 2. Скидаємо вибір у селекті
+    if (rankSelect) {
+        rankSelect.value = '';
+    }
+    
+    // 3. Скидаємо пошуковий запит
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // 4. Скидаємо текст всіх кнопок сортування
+    document.querySelectorAll('.sort-toggle-btn').forEach(button => {
+        button.innerHTML = '🔄 Сортувати';
+        button.style.backgroundColor = '#007bff';
+    });
+    
+    // 5. Надсилаємо форму
+    filterForm.submit();
+}
+
+/**
+ * Застосовує всі фільтри для адмін-сторінки
+ */
+window.applyAllAdminFilters = function() {
+    const rankSelect = document.getElementById('rank_filter_select');
+    const activeRankFilterInput = document.getElementById('active_rank_filter');
+    
+    if (rankSelect && activeRankFilterInput) {
+        activeRankFilterInput.value = rankSelect.value;
+    }
+    
+    document.getElementById('filterForm').submit();
+    closeFilterModal();
+}

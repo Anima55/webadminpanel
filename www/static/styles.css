@@ -348,6 +348,51 @@ body {
 .reset-sort-btn:hover {
     background-color: #4a4a4a;
 }
+
+/* Стилі для фільтрів рангу через select */
+.rank-filter-section {
+    background-color: #383060;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #5A4EAD;
+    margin-top: 10px;
+}
+
+.rank-filter-section label {
+    display: block;
+    margin-bottom: 8px;
+    color: #f0f0f0;
+    font-weight: bold;
+}
+
+.rank-select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #5A4EAD;
+    border-radius: 4px;
+    background-color: #483D8B;
+    color: #fff;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.rank-select option {
+    background-color: #483D8B;
+    color: #fff;
+    padding: 8px;
+}
+
+/* Стилі для активних кнопок сортування */
+.sort-toggle-btn.active {
+    background-color: #0056b3 !important;
+    border: 2px solid #fff;
+}
+
+/* Плавні переходи для кнопок */
+.sort-toggle-btn {
+    transition: all 0.3s ease;
+}
+
 /* ==========================================================
 // СТИЛІ ДЛЯ МОДАЛЬНОГО ВІКНА (Додавання/Редагування)
 // ========================================================== */

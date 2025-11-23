@@ -2,10 +2,11 @@
 // ФУНКЦІОНАЛ ДЛЯ МОДАЛЬНОГО ВІКНА ФІЛЬТРАЦІЇ
 // ==========================================================
 window.openFilterTicketModal = function() {
-    // Встановлюємо динамічний ID для модального вікна тікетів
-    const modal = document.getElementById('ticketFilterModal'); // <--- ВАЖЛИВО: ID модального вікна
+    const modal = document.getElementById('ticketFilterModal');
     if (modal) {
         modal.style.display = 'block';
+        // ОНОВЛЮЄМО ТЕКСТ КНОПОК ПРИ ВІДКРИТТІ МОДАЛЬНОГО ВІКНА
+        updateSortButtonsText();
     }
 }
 
@@ -16,12 +17,34 @@ window.closeFilterTicketModal = function() {
     }
 }
 
+// ФУНКЦІЯ ДЛЯ ОНОВЛЕННЯ ТЕКСТУ КНОПОК СОРТУВАННЯ
+window.updateSortButtonsText = function() {
+    const activeSortBy = document.getElementById('active_sort_by').value;
+    const activeSortType = document.getElementById('active_sort_type').value;
+    
+    // Оновлюємо всі кнопки сортування
+    const sortButtons = document.querySelectorAll('.sort-toggle-btn');
+    sortButtons.forEach(button => {
+        const sortField = button.getAttribute('data-sort-field');
+        
+        if (sortField === activeSortBy) {
+            // Якщо це активне поле сортування
+            button.innerHTML = activeSortType === 'desc' ? '⬇️ Спадання' : '⬆️ Зростання';
+            button.style.backgroundColor = '#0056b3'; // Підсвічуємо активну кнопку
+        } else {
+            // Якщо поле не активне
+            button.innerHTML = '🔄 Сортувати';
+            button.style.backgroundColor = '#007bff'; // Повертаємо стандартний колір
+        }
+    });
+}
+
 window.applyTicketSort = function(field, buttonId) {
     const activeSortByInput = document.getElementById('active_sort_by');
     const activeSortTypeInput = document.getElementById('active_sort_type');
     
     const currentSortBy = activeSortByInput.value;
-    let currentSortType = activeSortTypeInput.value || 'asc';
+    const currentSortType = activeSortTypeInput.value || 'asc';
 
     // 1. Визначаємо новий тип сортування
     let newType = 'asc';
@@ -38,11 +61,24 @@ window.applyTicketSort = function(field, buttonId) {
     activeSortByInput.value = field;
     activeSortTypeInput.value = newType;
     
-    // 3. Надсилаємо форму для застосування фільтра
-    document.getElementById('filterForm').submit();
+    // 3. Оновлюємо текст кнопки
+    const button = document.getElementById(buttonId);
+    if (button) {
+        button.innerHTML = newType === 'desc' ? '⬇️ Спадання' : '⬆️ Зростання';
+        // Підсвічуємо активну кнопку
+        button.style.backgroundColor = '#0056b3';
+        
+        // Скидаємо інші кнопки
+        document.querySelectorAll('.sort-toggle-btn').forEach(btn => {
+            if (btn.id !== buttonId) {
+                btn.innerHTML = '🔄 Сортувати';
+                btn.style.backgroundColor = '#007bff';
+            }
+        });
+    }
     
-    // 4. Закриваємо модальне вікно (опціонально, можна залишити відкритим, щоб було видно зміни)
-    closeFilterTicketModal();
+    // 4. Надсилаємо форму для застосування фільтра
+    document.getElementById('filterForm').submit();
 }
 
 // ==========================================================
@@ -58,9 +94,20 @@ window.resetSortTicketFilters = function() {
     activeSortByInput.value = '';
     activeSortTypeInput.value = '';
     
-    // 2. Надсилаємо форму. Це перезавантажить сторінку, використовуючи лише існуючий query (пошук).
+    // 2. Скидаємо текст всіх кнопок
+    document.querySelectorAll('.sort-toggle-btn').forEach(button => {
+        button.innerHTML = '🔄 Сортувати';
+        button.style.backgroundColor = '#007bff';
+    });
+    
+    // 3. Надсилаємо форму
     filterForm.submit();
     
-    // 3. Закриваємо модальне вікно
+    // 4. Закриваємо модальне вікно
     closeFilterTicketModal();
 }
+
+// ОНОВЛЮЄМО КНОПКИ ПРИ ЗАВАНТАЖЕННІ СТОРІНКИ
+document.addEventListener('DOMContentLoaded', function() {
+    updateSortButtonsText();
+});
