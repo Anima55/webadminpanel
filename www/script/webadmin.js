@@ -80,6 +80,30 @@ window.closeAddWebadminModal = function() {
     }
 };
 
+/**
+ * Функція для видалення веб-адміністратора
+ */
+window.deleteWebadmin = function() {
+    const webadminId = document.getElementById('modal_webadmin_id').value;
+    const webadminName = document.getElementById('modal_webadmin_name').value;
+    
+    if (confirm(`Ви впевнені, що хочете видалити веб-адміністратора "${webadminName}" (ID: ${webadminId})? Цю дію неможливо скасувати.`)) {
+        // Створюємо тимчасову форму для видалення
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/delete-webadmin';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'webadmin_id';
+        input.value = webadminId;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
 // ==========================================================
 // ФУНКЦІОНАЛ ДЛЯ ФІЛЬТРАЦІЇ ЗА РАНГОМ НА ADMIN-PAGE
 // ==========================================================

@@ -168,45 +168,42 @@
                 </div>
             </div>
             
-            <!-- Модальне вікно редагування WebAdmin -->
-            <div id="editWebadminModal" class="modal">
-                <div class="modal-content">
-                    <span class="close-btn" onclick="closeEditWebadminModal()">&times;</span>
-                    <h2>Редагувати WebAdmin</h2>
-                    
-                    <form method="POST" action="{{ url_for('update_webadmin') }}" id="editForm">
-                        <input type="hidden" name="webadmin_id" id="modal_webadmin_id">
-                        
-                        <label for="modal_webadmin_name">Ім'я:</label>
-                        <input type="text" id="modal_webadmin_name" name="username" required>
-                        
-                        <label for="modal_webadmin_rank">Ранг:</label>
-                        <select id="modal_webadmin_rank" name="webadmin_rank" required>
-                            <option value="Curator">Curator</option>
-                            <option value="Manager">Manager</option>
-                            <option value="SuperAdmin">SuperAdmin</option>
-                        </select>
-                        
-                        <label for="modal_webadmin_password">Новий пароль (залишіть порожнім, щоб не змінювати):</label>
-                        <input type="password" id="modal_webadmin_password" name="password">
-                        
-                        <div class="modal-buttons">
-                            <div class="modal-buttons-left">
-                                <button type="submit" class="save-btn">Зберегти зміни</button>
-                            </div>
-                            <div class="modal-buttons-delete-cancel">
-                                <form method="POST" action="{{ url_for('delete_webadmin') }}" id="deleteForm" style="display:inline;">
-                                    <input type="hidden" name="webadmin_id" id="modal_delete_webadmin_id">
-                                    <button type="submit" class="delete-btn" 
-                                            onclick="return confirm('Ви впевнені, що хочете видалити WebAdmin ID ' + document.getElementById('modal_delete_webadmin_id').value + '?');">
-                                        Видалити
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </form>
+           <!-- Модальне вікно редагування WebAdmin -->
+<div id="editWebadminModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeEditWebadminModal()">&times;</span>
+        <h2>Редагувати WebAdmin</h2>
+        
+        <!-- ЄДИНА форма для редагування та видалення -->
+        <form method="POST" action="{{ url_for('update_webadmin') }}" id="editForm">
+            <input type="hidden" name="webadmin_id" id="modal_webadmin_id">
+            
+            <label for="modal_webadmin_name">Ім'я:</label>
+            <input type="text" id="modal_webadmin_name" name="username" required>
+            
+            <label for="modal_webadmin_rank">Ранг:</label>
+            <select id="modal_webadmin_rank" name="webadmin_rank" required>
+                <option value="Curator">Curator</option>
+                <option value="Manager">Manager</option>
+                <option value="SuperAdmin">SuperAdmin</option>
+            </select>
+            
+            <label for="modal_webadmin_password">Новий пароль (залишіть порожнім, щоб не змінювати):</label>
+            <input type="password" id="modal_webadmin_password" name="password">
+            
+            <div class="modal-buttons">
+                <div class="modal-buttons-left">
+                    <button type="submit" class="save-btn">Зберегти зміни</button>
                 </div>
+                
+                <!-- Кнопка видалення в тій же формі, але з іншим типом -->
+                <button type="button" class="delete-btn" onclick="deleteWebadmin()">
+                    Видалити
+                </button>
             </div>
+        </form>
+    </div>
+</div>
         </section>
     </main>
 

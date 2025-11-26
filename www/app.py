@@ -458,53 +458,7 @@ def get_tickets_by_multi_search(search_query, sort_by=None, sort_type='ASC'): # 
     finally:
         if conn: conn.close()
 
-# --- ФУНКЦІЯ T3: Для перевірки облікових даних webadmin
-def check_webadmin_credentials(username, password):
-    """
-    Перевіряє облікові дані webadmin в таблиці public.webadmin.
-    
-    УВАГА: ЦЯ ФУНКЦІЯ ПЕРЕВІРЯЄ ПАРОЛЬ ЯК ПРОСТИЙ ТЕКСТ. 
-    У РЕАЛЬНОМУ ПРОЄКТІ ВИ ПОВИННІ ВИКОРИСТОВУВАТИ ХЕШУВАННЯ (наприклад, bcrypt)!
-    """
-    sql = "SELECT webadmin_id, webadmin_name FROM public.webadmin WHERE webadmin_name = %s AND webadmin_password = %s;"
-    conn = get_connection()
-    if conn is None: return None # Помилка підключення
 
-    try:
-        with conn.cursor() as cur:
-            # Використовуємо параметризований запит для захисту від SQL-ін'єкцій
-            cur.execute(sql, (username, password))
-            admin_data = cur.fetchone()
-            
-            if admin_data:
-                # Повертаємо дані адміністратора (ID та ім'я)
-                return {'webadmin_id': admin_data[0], 'webadmin_name': admin_data[1]}
-            else:
-                return None # Облікові дані невірні
-    except Exception as e:
-        # print(f"❌ Помилка перевірки облікових даних: {e}")
-        return None
-    finally:
-        if conn:
-            conn.close()
-
-# --- ФУНКЦІЯ T4: Для отримання рангу WebAdmin
-def get_webadmin_rank(username):
-    """Повертає ранг (webadmin_rank) користувача webadmin."""
-    conn = get_connection()
-    if conn is None:
-        return None
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT webadmin_rank FROM webadmin WHERE webadmin_name = %s", (username,))
-            result = cur.fetchone()
-            return result[0] if result else None
-    except Exception as e:
-        print(f"Помилка отримання рангу webadmin: {e}")
-        return None
-    finally:
-        if conn:
-            conn.close()
 
 # ==========================================================
 # Функцій для табліци WebAdmin
@@ -801,6 +755,54 @@ def get_webadmins_by_rank(rank_filter=None, sort_by=None, sort_type='ASC'):
         return []
     finally:
         if conn: 
+            conn.close()
+
+# --- ФУНКЦІЯ W9: Для перевірки облікових даних webadmin
+def check_webadmin_credentials(username, password):
+    """
+    Перевіряє облікові дані webadmin в таблиці public.webadmin.
+    
+    УВАГА: ЦЯ ФУНКЦІЯ ПЕРЕВІРЯЄ ПАРОЛЬ ЯК ПРОСТИЙ ТЕКСТ. 
+    У РЕАЛЬНОМУ ПРОЄКТІ ВИ ПОВИННІ ВИКОРИСТОВУВАТИ ХЕШУВАННЯ (наприклад, bcrypt)!
+    """
+    sql = "SELECT webadmin_id, webadmin_name FROM public.webadmin WHERE webadmin_name = %s AND webadmin_password = %s;"
+    conn = get_connection()
+    if conn is None: return None # Помилка підключення
+
+    try:
+        with conn.cursor() as cur:
+            # Використовуємо параметризований запит для захисту від SQL-ін'єкцій
+            cur.execute(sql, (username, password))
+            admin_data = cur.fetchone()
+            
+            if admin_data:
+                # Повертаємо дані адміністратора (ID та ім'я)
+                return {'webadmin_id': admin_data[0], 'webadmin_name': admin_data[1]}
+            else:
+                return None # Облікові дані невірні
+    except Exception as e:
+        # print(f"❌ Помилка перевірки облікових даних: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+# --- ФУНКЦІЯ W10: Для отримання рангу WebAdmin
+def get_webadmin_rank(username):
+    """Повертає ранг (webadmin_rank) користувача webadmin."""
+    conn = get_connection()
+    if conn is None:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT webadmin_rank FROM webadmin WHERE webadmin_name = %s", (username,))
+            result = cur.fetchone()
+            return result[0] if result else None
+    except Exception as e:
+        print(f"Помилка отримання рангу webadmin: {e}")
+        return None
+    finally:
+        if conn:
             conn.close()
 
 # --- НАЛАШТУВАННЯ FLASK ---
@@ -1289,44 +1291,79 @@ def update_webadmin():
     return redirect(url_for('admin_page'))
 
 # --- МАРШРУТ 13: ВИДАЛЕННЯ ВЕБ-АДМІНА ---
+# --- МАРШРУТ 13: ВИДАЛЕННЯ ВЕБ-АДМІНА ---
 @app.route('/delete-webadmin', methods=['POST'])
 @login_required
 @admin_required(['SuperAdmin'])
 def delete_webadmin():
-    conn = get_connection() # <<< ВИПРАВЛЕННЯ: Отримання з'єднання
+    print("🔵 === ПОЧАТОК ВИДАЛЕННЯ WEBADMIN ===")
+    
+    conn = get_connection()
     if not conn:
         flash('Помилка підключення до бази даних.', 'error')
-        return redirect(url_for('admin_page'))
+        conn.close()  # Додайте це
+        return redirect(url_for('admin_page'))  # Додайте return
         
     webadmin_id = request.form.get('webadmin_id')
+    print(f"📥 Отримано ID для видалення: {webadmin_id}")
+    
+    if not webadmin_id:
+        flash('ID веб-адміністратора не вказано.', 'error')
+        print("❌ Помилка: webadmin_id відсутній у формі")
+        conn.close()
+        return redirect(url_for('admin_page'))  # Додайте return
     
     # Запобігання видаленню власного облікового запису
     if str(webadmin_id) == str(session.get('webadmin_id')):
         flash('Ви не можете видалити власний обліковий запис!', 'error')
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
-        return redirect(url_for('admin_page'))
+        conn.close()
+        return redirect(url_for('admin_page'))  # Додайте return
     
     try:
         with conn.cursor() as cur:
+            # Спочатку отримаємо ім'я адміністратора для логування
+            cur.execute("SELECT webadmin_name FROM webadmin WHERE webadmin_id = %s;", (webadmin_id,))
+            result = cur.fetchone()
+            
+            if not result:
+                flash('WebAdmin не знайдено.', 'error')
+                conn.close()
+                return redirect(url_for('admin_page'))  # Додайте return
+            
+            admin_name = result[0]
+            
+            # Видаляємо адміністратора
             cur.execute("DELETE FROM webadmin WHERE webadmin_id = %s;", (webadmin_id,))
-            success = cur.rowcount > 0
+            deleted_rows = cur.rowcount
+            
             conn.commit()
             
-            if success:
-                flash('WebAdmin успішно видалено!', 'success')
-                # --- ВИКЛИК ЛОГУВАННЯ: DELETE ---
+            if deleted_rows > 0:
+                flash(f'WebAdmin "{admin_name}" успішно видалено!', 'success')
+                print(f"✅ Успішне видалення webadmin ID {webadmin_id}")
+                
+                # Логування дії
                 log_action(session.get('webadmin_id'), session.get('username'), 
                            'DELETE', 'webadmin', webadmin_id)
             else:
                 flash('WebAdmin не знайдено.', 'error')
+                print(f"⚠️  Жодного рядка не видалено")
             
     except psycopg.Error as e:
         conn.rollback()
-        flash(f'Помилка видалення WebAdmin: {e}', 'error')
+        error_msg = f'Помилка видалення WebAdmin: {e}'
+        flash(error_msg, 'error')
+        print(f"❌ Помилка бази даних при видаленні: {e}")
+    except Exception as e:
+        conn.rollback()
+        error_msg = f'Невідома помилка: {e}'
+        flash(error_msg, 'error')
+        print(f"❌ Невідома помилка при видаленні: {e}")
     finally:
-        conn.close() # <<< ЗАКРИТТЯ З'ЄДНАННЯ
+        conn.close()
+        print("🔵 === ЗАВЕРШЕННЯ ВИДАЛЕННЯ WEBADMIN ===\n")
         
-    return redirect(url_for('admin_page'))
+    return redirect(url_for('admin_page'))  # Цей return завжди має бути в кінці
 
 
 # --- МАРШРУТ 14: ДОДАВАННЯ ВЕБ-АДМІНА ---
